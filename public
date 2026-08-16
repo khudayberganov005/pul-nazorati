@@ -1,0 +1,8 @@
+pul-nazorati/
+├── server.js          # Express server + barcha API'lar
+├── bot.js              # Telegram bot (/start buyrug'i, Web App tugmasi)
+├── db.js                # SQLite ma'lumotlar bazasi
+├── telegramAuth.js      # Telegram foydalanuvchisini xavfsiz tekshirish
+├── public/index.html    # Frontend (bosh sahifa, statistika, maqsadlar, tahlil)
+├── package.json
+└── .env.example
