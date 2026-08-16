@@ -134,12 +134,12 @@ api.post('/goals/:id/contribute', (req, res) => {
 });
 
 app.use('/api', api);
-
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server ${PORT}-portda ishga tushdi`));
 
 // Telegram botni ham shu jarayonda ishga tushiramiz
 require('./bot');
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+
