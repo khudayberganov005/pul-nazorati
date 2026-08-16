@@ -568,15 +568,17 @@
   const expenseColor = rootStyles.getPropertyValue('--expense').trim();
   const textDim = 'rgba(242,244,250,0.5)';
 
-  let statsChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: [],
-      datasets: [
-        { label: 'Daromad', data: [], backgroundColor: incomeColor, borderRadius: 5, maxBarThickness: 18 },
-        { label: 'Xarajat', data: [], backgroundColor: expenseColor, borderRadius: 5, maxBarThickness: 18 }
-      ]
-    },
+  let statsChart = null;
+  try {
+    statsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Daromad', data: [], backgroundColor: incomeColor, borderRadius: 5, maxBarThickness: 18 },
+          { label: 'Xarajat', data: [], backgroundColor: expenseColor, borderRadius: 5, maxBarThickness: 18 }
+        ]
+      },
     options: {
       responsive: true,
       plugins: {
@@ -598,22 +600,25 @@
         y: { ticks: { color: textDim, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' } }
       }
     }
-  });
+    });
+  } catch (e) { console.error('Chart.js yuklanmadi:', e); }
 
   async function loadStats(period) {
     currentStatsPeriod = period;
     try {
       const p = await api('/stats?period=' + period);
-      statsChart.data.labels = p.labels;
-      statsChart.data.datasets[0].data = p.income;
-      statsChart.data.datasets[1].data = p.expense;
-      statsChart.update();
+      if (statsChart) {
+        statsChart.data.labels = p.labels;
+        statsChart.data.datasets[0].data = p.income;
+        statsChart.data.datasets[1].data = p.expense;
+        statsChart.update();
+      }
 
       const totalIncome = p.income.reduce((a, b) => a + b, 0);
       const totalExpense = p.expense.reduce((a, b) => a + b, 0);
       document.getElementById('sumIncome').textContent = '+' + fmt(totalIncome);
       document.getElementById('sumExpense').textContent = '-' + fmt(totalExpense);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Statistikani yuklashda xatolik:', e.message); }
   }
 
   document.querySelectorAll('.period-toggle button').forEach(btn => {
@@ -697,31 +702,33 @@
       const totalExp = categories.reduce((a, c) => a + c.amount, 0) || 1;
 
       const donutCtx = document.getElementById('donutChart');
-      if (donutChart) donutChart.destroy();
-      donutChart = new Chart(donutCtx, {
-        type: 'doughnut',
-        data: {
-          labels: categories.map(c => c.name),
-          datasets: [{
-            data: categories.map(c => c.amount),
-            backgroundColor: categories.map(c => c.color),
-            borderColor: '#12141D',
-            borderWidth: 3,
-            hoverOffset: 6
-          }]
-        },
-        options: {
-          cutout: '68%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#191C28', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
-              titleColor: '#F2F4FA', bodyColor: '#F2F4FA', padding: 10,
-              callbacks: { label: (item) => `${item.label}: ${item.formattedValue} so'm` }
+      try {
+        if (donutChart) donutChart.destroy();
+        donutChart = new Chart(donutCtx, {
+          type: 'doughnut',
+          data: {
+            labels: categories.map(c => c.name),
+            datasets: [{
+              data: categories.map(c => c.amount),
+              backgroundColor: categories.map(c => c.color),
+              borderColor: '#12141D',
+              borderWidth: 3,
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            cutout: '68%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#191C28', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                titleColor: '#F2F4FA', bodyColor: '#F2F4FA', padding: 10,
+                callbacks: { label: (item) => `${item.label}: ${item.formattedValue} so'm` }
+              }
             }
           }
-        }
-      });
+        });
+      } catch (chartErr) { console.error('Donut chart yuklanmadi:', chartErr); }
 
       const breakdown = document.getElementById('catBreakdown');
       breakdown.innerHTML = '';
