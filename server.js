@@ -52,6 +52,23 @@ api.post('/transactions', (req, res) => {
   res.json({ id: info.lastInsertRowid });
 });
 
+/* ---------- TRANZAKSIYALAR RO'YXATI ---------- */
+api.get('/transactions', (req, res) => {
+  const rows = db.prepare(`
+    SELECT * FROM transactions WHERE user_id = ?
+    ORDER BY date DESC, created_at DESC
+    LIMIT 30
+  `).all(req.dbUser.id);
+  res.json({ transactions: rows });
+});
+
+api.delete('/transactions/:id', (req, res) => {
+  const info = db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?')
+    .run(req.params.id, req.dbUser.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Tranzaksiya topilmadi' });
+  res.json({ ok: true });
+});
+
 /* ---------- STATISTIKA (grafik uchun) ---------- */
 api.get('/stats', (req, res) => {
   const period = req.query.period || 'week';
@@ -133,13 +150,17 @@ api.post('/goals/:id/contribute', (req, res) => {
   res.json({ current: newCurrent });
 });
 
-app.use('/api', api);
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+api.delete('/goals/:id', (req, res) => {
+  const info = db.prepare('DELETE FROM goals WHERE id = ? AND user_id = ?')
+    .run(req.params.id, req.dbUser.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Maqsad topilmadi' });
+  res.json({ ok: true });
 });
+
+app.use('/api', api);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server ${PORT}-portda ishga tushdi`));
 
 // Telegram botni ham shu jarayonda ishga tushiramiz
 require('./bot');
-
