@@ -193,6 +193,41 @@
   .submit-btn.income{ background:var(--income); color:#08120C; box-shadow:0 0 20px var(--income-glow); }
   .submit-btn.expense{ background:var(--expense); color:#170810; box-shadow:0 0 20px var(--expense-glow); }
 
+  /* ===== TRANSACTIONS LIST ===== */
+  .tx-list-card{
+    margin:22px 20px 0; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:16px 16px 6px;
+  }
+  .tx-list-title{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; margin-bottom:12px; padding:0 2px; }
+  .tx-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:20px 0 24px; }
+  .tx-row{
+    display:flex; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid var(--line);
+  }
+  .tx-row:last-child{ border-bottom:none; }
+  .tx-icon{
+    width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .tx-icon.income{ background:var(--income-dim); color:var(--income); }
+  .tx-icon.expense{ background:var(--expense-dim); color:var(--expense); }
+  .tx-info{ flex:1; min-width:0; }
+  .tx-cat{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-amount{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; white-space:nowrap; }
+  .tx-amount.income{ color:var(--income); }
+  .tx-amount.expense{ color:var(--expense); }
+  .tx-delete{
+    width:28px; height:28px; border-radius:8px; border:1px solid var(--line); background:transparent;
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+    transition:all .15s;
+  }
+  .tx-delete:hover{ border-color:var(--expense); color:var(--expense); background:var(--expense-dim); }
+
+  .goal-delete{
+    width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:transparent;
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:all .15s;
+  }
+  .goal-delete:hover{ border-color:var(--expense); color:var(--expense); background:var(--expense-dim); }
+
   /* ===== STATS VIEW ===== */
   .period-toggle{
     display:flex; gap:8px; padding:0 20px 18px;
@@ -336,6 +371,11 @@
       <textarea id="commentInput" placeholder="Ixtiyoriy izoh..."></textarea>
 
       <button class="submit-btn income" id="submitBtn">Qo&#39;shish</button>
+    </div>
+
+    <div class="tx-list-card">
+      <div class="tx-list-title">So&#39;nggi tranzaksiyalar</div>
+      <div id="txList"></div>
     </div>
   </section>
 
@@ -540,6 +580,7 @@
       await loadSummary();
       await loadStats(currentStatsPeriod);
       await loadAnalysis();
+      await loadTransactions();
     } catch (e) {
       alert(e.message);
     } finally {
@@ -557,6 +598,44 @@
       document.querySelectorAll('.chip-amount')[1].textContent = '-' + fmt(data.expense);
     } catch (e) {
       console.error('Balansni yuklashda xatolik:', e.message);
+    }
+  }
+
+  const incomeIconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5L5 12M12 5l7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const expenseIconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M12 19l7-7M12 19l-7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const trashIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  async function loadTransactions() {
+    const txList = document.getElementById('txList');
+    try {
+      const data = await api('/transactions');
+      if (!data.transactions.length) {
+        txList.innerHTML = '<div class="tx-empty">Hali tranzaksiya yo\'q</div>';
+        return;
+      }
+      txList.innerHTML = data.transactions.map(t => `
+        <div class="tx-row">
+          <div class="tx-icon ${t.type}">${t.type === 'income' ? incomeIconSvg : expenseIconSvg}</div>
+          <div class="tx-info">
+            <div class="tx-cat">${t.category}</div>
+            <div class="tx-meta">${t.date}${t.comment ? ' &middot; ' + t.comment : ''}</div>
+          </div>
+          <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
+          <button class="tx-delete" data-id="${t.id}" aria-label="O'chirish">${trashIconSvg}</button>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.tx-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Bu tranzaksiyani o'chirmoqchimisiz?")) return;
+          try {
+            await api(`/transactions/${btn.dataset.id}`, { method: 'DELETE' });
+            await Promise.all([loadTransactions(), loadSummary(), loadStats(currentStatsPeriod), loadAnalysis()]);
+          } catch (e) { alert(e.message); }
+        });
+      });
+    } catch (e) {
+      console.error('Tranzaksiyalarni yuklashda xatolik:', e.message);
     }
   }
 
@@ -642,7 +721,12 @@
       card.innerHTML = `
         <div class="goal-top">
           <div class="goal-name">${g.name}</div>
-          <div class="goal-percent">${percent}%</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="goal-percent">${percent}%</div>
+            <button class="goal-delete" data-id="${g.id}" aria-label="O'chirish">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
         </div>
         <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${percent}%"></div></div>
         <div class="goal-nums"><span>${fmt(g.current)} so'm</span><span>${fmt(g.target)} so'm</span></div>
@@ -652,6 +736,16 @@
         </div>
       `;
       list.appendChild(card);
+    });
+
+    document.querySelectorAll('.goal-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Bu maqsadni o\'chirmoqchimisiz?')) return;
+        try {
+          await api(`/goals/${btn.dataset.id}`, { method: 'DELETE' });
+          await loadGoals();
+        } catch (e) { alert(e.message); }
+      });
     });
 
     document.querySelectorAll('.goal-add-input').forEach(formatNumInput);
@@ -757,6 +851,7 @@
   loadStats('week');
   loadGoals();
   loadAnalysis();
+  loadTransactions();
 </script>
 </body>
 </html>
