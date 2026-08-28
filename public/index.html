@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -243,6 +242,13 @@
     margin:0 20px 20px; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:18px;
   }
   .chart-card canvas{ max-height:220px; }
+  .svg-chart-wrap{ width:100%; }
+  .svg-chart-wrap svg{ width:100%; height:auto; display:block; }
+  .bar-value{ font-family:'IBM Plex Mono', monospace; font-size:9px; fill:var(--text-dim); }
+  .bar-label{ font-family:'IBM Plex Sans', sans-serif; font-size:9px; fill:var(--text-dim); }
+  .donut-svg-wrap{ width:200px; height:200px; margin:0 auto; }
+  .donut-svg-wrap svg{ width:100%; height:100%; }
+  .chart-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:30px 0; }
   .legend-row{ display:flex; gap:18px; margin-top:14px; justify-content:center; }
   .legend-item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); }
   .legend-dot{ width:8px; height:8px; border-radius:50%; }
@@ -391,7 +397,7 @@
     </div>
 
     <div class="chart-card">
-      <canvas id="statsChart"></canvas>
+      <div id="statsChart" class="svg-chart-wrap"></div>
       <div class="legend-row">
         <div class="legend-item"><span class="legend-dot" style="background:var(--income)"></span>Daromad</div>
         <div class="legend-item"><span class="legend-dot" style="background:var(--expense)"></span>Xarajat</div>
@@ -435,7 +441,7 @@
     <div class="screen-sub">Xarajatlar kategoriyalar bo'yicha taqsimoti &middot; bu oy</div>
 
     <div class="donut-card">
-      <canvas id="donutChart" width="200" height="200"></canvas>
+      <div id="donutChart" class="donut-svg-wrap"></div>
     </div>
 
     <div class="cat-breakdown" id="catBreakdown"></div>
@@ -639,59 +645,66 @@
     }
   }
 
-  /* ---------- STATISTIKA CHART ---------- */
+  /* ---------- STATISTIKA CHART (Chart.js'siz, sof SVG) ---------- */
   let currentStatsPeriod = 'week';
-  const ctx = document.getElementById('statsChart');
-  const rootStyles = getComputedStyle(document.documentElement);
-  const incomeColor = rootStyles.getPropertyValue('--income').trim();
-  const expenseColor = rootStyles.getPropertyValue('--expense').trim();
-  const textDim = 'rgba(242,244,250,0.5)';
+  const statsChartEl = document.getElementById('statsChart');
 
-  let statsChart = null;
-  try {
-    statsChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Daromad', data: [], backgroundColor: incomeColor, borderRadius: 5, maxBarThickness: 18 },
-          { label: 'Xarajat', data: [], backgroundColor: expenseColor, borderRadius: 5, maxBarThickness: 18 }
-        ]
-      },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#191C28',
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          titleColor: '#F2F4FA',
-          bodyColor: '#F2F4FA',
-          padding: 10,
-          callbacks: {
-            label: (item) => `${item.dataset.label}: ${item.formattedValue} so'm`
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: textDim, font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: textDim, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' } }
-      }
+  function renderBarChart(container, labels, incomeArr, expenseArr) {
+    if (!labels.length) {
+      container.innerHTML = '<div class="chart-empty">Bu davr uchun ma\'lumot yo\'q</div>';
+      return;
     }
+    const W = 340, H = 190, padBottom = 22, padTop = 14;
+    const chartH = H - padBottom - padTop;
+    const maxVal = Math.max(1, ...incomeArr, ...expenseArr);
+    const groupW = W / labels.length;
+    const barW = Math.min(14, groupW / 3.2);
+
+    let bars = '';
+    labels.forEach((label, i) => {
+      const cx = groupW * i + groupW / 2;
+      const incH = (incomeArr[i] / maxVal) * chartH;
+      const expH = (expenseArr[i] / maxVal) * chartH;
+      const incX = cx - barW - 2;
+      const expX = cx + 2;
+
+      bars += `<rect x="${incX}" y="${padTop + chartH - incH}" width="${barW}" height="${Math.max(incH,1.5)}" rx="3" fill="var(--income)"><title>Daromad: ${fmt(incomeArr[i])} so'm</title></rect>`;
+      bars += `<rect x="${expX}" y="${padTop + chartH - expH}" width="${barW}" height="${Math.max(expH,1.5)}" rx="3" fill="var(--expense)"><title>Xarajat: ${fmt(expenseArr[i])} so'm</title></rect>`;
+      bars += `<text x="${cx}" y="${H - 4}" text-anchor="middle" class="bar-label">${label}</text>`;
     });
-  } catch (e) { console.error('Chart.js yuklanmadi:', e); }
+
+    container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="${padTop + chartH}" x2="${W}" y2="${padTop + chartH}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      ${bars}
+    </svg>`;
+  }
+
+  function renderDonutChart(container, categories) {
+    if (!categories.length) {
+      container.innerHTML = '<div class="chart-empty">Xarajat yo\'q</div>';
+      return;
+    }
+    const total = categories.reduce((a, c) => a + c.amount, 0) || 1;
+    const size = 200, cx = 100, cy = 100, r = 70, strokeW = 26;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let circles = '';
+    categories.forEach(c => {
+      const frac = c.amount / total;
+      const dash = frac * circumference;
+      circles += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c.color}" stroke-width="${strokeW}"
+        stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-offset}"
+        transform="rotate(-90 ${cx} ${cy})"><title>${c.name}: ${fmt(c.amount)} so'm</title></circle>`;
+      offset += dash;
+    });
+    container.innerHTML = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${circles}</svg>`;
+  }
 
   async function loadStats(period) {
     currentStatsPeriod = period;
     try {
       const p = await api('/stats?period=' + period);
-      if (statsChart) {
-        statsChart.data.labels = p.labels;
-        statsChart.data.datasets[0].data = p.income;
-        statsChart.data.datasets[1].data = p.expense;
-        statsChart.update();
-      }
+      renderBarChart(statsChartEl, p.labels, p.income, p.expense);
 
       const totalIncome = p.income.reduce((a, b) => a + b, 0);
       const totalExpense = p.expense.reduce((a, b) => a + b, 0);
@@ -785,7 +798,6 @@
 
   /* ---------- TAHLIL (DONUT) ---------- */
   const palette = ['#FF3D6E', '#00E5FF', '#8B5CFF', '#FFB020', '#39FF9E', '#FF7A45'];
-  let donutChart = null;
 
   async function loadAnalysis() {
     try {
@@ -795,34 +807,7 @@
       }));
       const totalExp = categories.reduce((a, c) => a + c.amount, 0) || 1;
 
-      const donutCtx = document.getElementById('donutChart');
-      try {
-        if (donutChart) donutChart.destroy();
-        donutChart = new Chart(donutCtx, {
-          type: 'doughnut',
-          data: {
-            labels: categories.map(c => c.name),
-            datasets: [{
-              data: categories.map(c => c.amount),
-              backgroundColor: categories.map(c => c.color),
-              borderColor: '#12141D',
-              borderWidth: 3,
-              hoverOffset: 6
-            }]
-          },
-          options: {
-            cutout: '68%',
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: '#191C28', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
-                titleColor: '#F2F4FA', bodyColor: '#F2F4FA', padding: 10,
-                callbacks: { label: (item) => `${item.label}: ${item.formattedValue} so'm` }
-              }
-            }
-          }
-        });
-      } catch (chartErr) { console.error('Donut chart yuklanmadi:', chartErr); }
+      renderDonutChart(document.getElementById('donutChart'), categories);
 
       const breakdown = document.getElementById('catBreakdown');
       breakdown.innerHTML = '';
@@ -843,7 +828,7 @@
         `;
         breakdown.appendChild(row);
       });
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Tahlilni yuklashda xatolik:', e.message); }
   }
 
   /* ---------- BOSHLANG'ICH YUKLASH ---------- */
