@@ -70,7 +70,15 @@ const api = express.Router();
   Telegram Web App autentifikatsiyasi.
   /api ostidagi barcha user endpointlar uchun ishlaydi.
 */
-api.use(requireTelegramAuth);
+api.use((req, res, next) => {
+  // Admin API Telegram autentifikatsiyasidan o'tmaydi.
+  // Admin API o'zining ADMIN_PASSWORD himoyasiga ega.
+  if (req.path.startsWith('/admin')) {
+    return next();
+  }
+
+  return requireTelegramAuth(req, res, next);
+});
 
 
 /* =========================================================
