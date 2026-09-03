@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -6,9 +7,11 @@ const { pool, initDb } = require('./db');
 const { requireTelegramAuth, requireAdminAuth } = require('./telegramAuth');
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+const publicPath = path.join(__dirname, 'public');
 
 app.use(express.static(publicPath));
 
@@ -18,6 +21,13 @@ app.get('/', (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(publicPath, 'admin.html'));
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'pul-nazorati'
+  });
 });
 
 const api = express.Router();
