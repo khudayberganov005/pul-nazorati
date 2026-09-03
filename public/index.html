@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pul Nazorati</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0B0E16;
+    --panel:#131722;
+    --panel-2:#1A1F2E;
+    --line:rgba(255,255,255,0.08);
+    --text:#F5F6FA;
+    --text-dim:rgba(245,246,250,0.55);
+
+    --income:#00C853;
+    --income-dim:rgba(0,200,83,0.12);
+    --expense:#FF5252;
+    --expense-dim:rgba(255,82,82,0.12);
+
+    --cyan:#00E5FF;
+    --violet:#7C4DFF;
+    --amber:#FFB020;
+
+    --gradient: linear-gradient(135deg, #00E5FF 0%, #7C4DFF 100%);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; background:var(--bg); }
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .app{
+    width:100%;
+    max-width:430px;
+    min-height:100vh;
+    background:var(--bg);
+    position:relative;
+    padding:env(safe-area-inset-top,0) 0 calc(110px + env(safe-area-inset-bottom,0));
+  }
+
+  .view{ display:none; animation:fadeIn .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ===== SHARED ===== */
+  .screen-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:20px; font-weight:600; padding:24px 20px 4px; letter-spacing:-0.01em;
+  }
+  .screen-sub{ padding:0 20px; font-size:12px; color:var(--text-dim); margin-bottom:18px; }
+
+  /* ===== HERO BALANCE CARD ===== */
+  .hero-card{
+    margin:18px 20px 0;
+    padding:24px 22px 26px;
+    border-radius:24px;
+    background:var(--gradient);
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-card::after{
+    content:'';
+    position:absolute; inset:0;
+    background:radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,0.22), transparent 55%);
+  }
+  .hero-eyebrow{
+    position:relative; font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:rgba(11,14,22,0.65); font-weight:600;
+  }
+  .hero-balance{
+    position:relative;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:38px;
+    color:#0B0E16; margin-top:8px; letter-spacing:-0.01em;
+  }
+  .hero-balance .unit{ font-size:15px; font-weight:600; color:rgba(11,14,22,0.6); margin-left:6px; }
+
+  /* ===== STAT CARDS ===== */
+  .stats{ display:flex; gap:12px; padding:16px 20px 0; }
+  .stat-card{
+    flex:1; border-radius:18px; padding:14px 15px; background:var(--panel); border:1px solid var(--line);
+    display:flex; align-items:center; gap:10px;
+  }
+  .stat-icon{
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .stat-icon.income{ background:var(--income); }
+  .stat-icon.expense{ background:var(--expense); }
+  .stat-text-label{ font-size:11px; color:var(--text-dim); }
+  .chip-amount{
+    font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:600; color:var(--text); margin-top:2px;
+  }
+
+  /* ===== ADD PANEL ===== */
+  .add-panel{
+    margin:20px 20px 0; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:18px 18px 20px;
+  }
+  .add-panel-title{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; margin-bottom:16px; }
+
+  .type-toggle{ display:flex; background:var(--panel-2); border-radius:12px; padding:4px; gap:4px; margin-bottom:20px; }
+  .type-toggle button{
+    flex:1; border:none; background:transparent; padding:10px 0; border-radius:9px;
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; font-weight:600; letter-spacing:0.02em;
+    color:var(--text-dim); cursor:pointer; transition:all .2s;
+  }
+  .type-toggle button.active.income{ background:var(--income); color:#fff; }
+  .type-toggle button.active.expense{ background:var(--expense); color:#fff; }
+
+  .field-label{
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-dim);
+    font-weight:600; margin:18px 0 12px;
+  }
+  .field-label:first-of-type{ margin-top:0; }
+
+  /* ===== CATEGORY ICON TILES ===== */
+  .cat-tile-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(70px, 1fr)); gap:6px; }
+  .cat-tile{
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    background:none; border:none; cursor:pointer; padding:6px 2px; border-radius:14px;
+    transition:background .15s;
+  }
+  .cat-tile-icon{
+    width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    color:#fff; transition:box-shadow .15s, transform .15s;
+  }
+  .cat-tile span{ font-size:11px; color:var(--text-dim); text-align:center; line-height:1.25; font-weight:500; }
+  .cat-tile.selected .cat-tile-icon{
+    box-shadow:0 0 0 2px var(--panel), 0 0 0 4px rgba(255,255,255,0.55);
+    transform:translateY(-2px);
+  }
+  .cat-tile.selected span{ color:var(--text); font-weight:600; }
+
+  .custom-cat-input{ display:none; margin-top:12px; }
+  .custom-cat-input.show{ display:block; }
+
+  input[type="date"], input[type="text"], textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; color:var(--text); font-family:'IBM Plex Sans', sans-serif; font-size:14px; outline:none;
+  }
+  input[type="date"]{ color-scheme:dark; }
+
+  .amount-row{ display:flex; align-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:6px 14px; }
+  .amount-row input{ border:none; background:transparent; font-family:'IBM Plex Mono', monospace; font-size:22px; padding:10px 0; flex:1; color:var(--text); }
+  .amount-row input:focus{ outline:none; }
+  .amount-unit{ font-size:13px; color:var(--cyan); font-weight:600; }
+
+  textarea{ resize:none; height:56px; font-size:13px; line-height:1.4; }
+
+  .submit-btn{
+    width:100%; margin-top:20px; padding:15px 0; border:none; border-radius:14px;
+    font-family:'IBM Plex Sans', sans-serif; font-size:15px; font-weight:600; letter-spacing:0.02em; cursor:pointer;
+    color:#fff;
+  }
+  .submit-btn.income{ background:var(--income); }
+  .submit-btn.expense{ background:var(--expense); }
+  .submit-btn.primary{ background:var(--gradient); color:#0B0E16; }
+
+  /* ===== TRANSACTIONS LIST ===== */
+  .tx-list-card{ margin:20px 20px 0; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:16px 16px 6px; }
+  .tx-list-title{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; margin-bottom:12px; padding:0 2px; }
+  .tx-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:20px 0 24px; }
+  .tx-row{ display:flex; align-items:center; gap:11px; padding:11px 2px; border-bottom:1px solid var(--line); }
+  .tx-row:last-child{ border-bottom:none; }
+  .tx-icon-tile{ width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
+  .tx-info{ flex:1; min-width:0; }
+  .tx-cat{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-meta{ font-size:11px; color:var(--text-dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-amount{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; white-space:nowrap; }
+  .tx-amount.income{ color:var(--income); }
+  .tx-amount.expense{ color:var(--expense); }
+  .tx-delete{
+    width:28px; height:28px; border-radius:8px; border:1px solid var(--line); background:transparent;
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+    transition:all .15s;
+  }
+  .tx-delete:hover{ border-color:var(--expense); color:var(--expense); background:var(--expense-dim); }
+
+  /* ===== STATS VIEW ===== */
+  .period-toggle{ display:flex; gap:8px; padding:0 20px 18px; }
+  .period-toggle button{
+    flex:1; padding:10px 0; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text-dim); font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px; font-weight:600; cursor:pointer; transition:all .2s;
+  }
+  .period-toggle button.active{ background:var(--gradient); border-color:transparent; color:#0B0E16; }
+
+  .chart-card{ margin:0 20px 20px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:18px; }
+  .svg-chart-wrap{ width:100%; }
+  .svg-chart-wrap svg{ width:100%; height:auto; display:block; }
+  .bar-label{ font-family:'IBM Plex Sans', sans-serif; font-size:9px; fill:var(--text-dim); }
+  .chart-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:30px 0; }
+  .legend-row{ display:flex; gap:18px; margin-top:14px; justify-content:center; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); }
+  .legend-dot{ width:8px; height:8px; border-radius:50%; }
+
+  .summary-row{ display:flex; gap:12px; padding:0 20px 20px; }
+  .summary-card{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; }
+  .summary-label{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; }
+  .summary-value{ font-family:'IBM Plex Mono', monospace; font-size:17px; font-weight:600; margin-top:6px; }
+  .summary-value.income{ color:var(--income); }
+  .summary-value.expense{ color:var(--expense); }
+
+  /* ===== GOALS VIEW ===== */
+  .goal-form{ margin:0 20px 22px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:18px; }
+  .goal-form .field-label:first-of-type{ margin-top:0; }
+  .goal-list{ padding:0 20px; display:flex; flex-direction:column; gap:14px; }
+  .goal-card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:16px 16px 14px; }
+  .goal-top{ display:flex; justify-content:space-between; align-items:baseline; }
+  .goal-name{ font-family:'Space Grotesk', sans-serif; font-size:15px; font-weight:600; }
+  .goal-percent{ font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:600; color:var(--violet); }
+  .goal-bar-track{ height:8px; background:var(--panel-2); border-radius:6px; margin-top:12px; overflow:hidden; }
+  .goal-bar-fill{ height:100%; background:var(--gradient); border-radius:6px; }
+  .goal-nums{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--text-dim); font-family:'IBM Plex Mono', monospace; }
+  .goal-add-row{ display:flex; gap:8px; margin-top:12px; }
+  .goal-add-row input{ flex:1; padding:9px 12px; font-size:13px; }
+  .goal-add-row button{
+    padding:0 16px; border-radius:10px; background:rgba(124,77,255,0.14); color:var(--violet);
+    border:1px solid var(--violet); font-weight:600; font-size:13px; cursor:pointer;
+  }
+  .goal-delete{
+    width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:transparent;
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s;
+  }
+  .goal-delete:hover{ border-color:var(--expense); color:var(--expense); background:var(--expense-dim); }
+
+  /* ===== ANALYSIS VIEW ===== */
+  .donut-card{
+    margin:0 20px 18px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:20px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .donut-svg-wrap{ width:200px; height:200px; margin:0 auto; }
+  .donut-svg-wrap svg{ width:100%; height:100%; }
+  .cat-breakdown{ padding:0 20px; display:flex; flex-direction:column; gap:10px; }
+  .cat-row{ display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px 14px; }
+  .cat-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .cat-info{ flex:1; }
+  .cat-name{ font-size:13px; font-weight:600; }
+  .cat-bar-track{ height:4px; background:var(--panel-2); border-radius:4px; margin-top:6px; }
+  .cat-bar-fill{ height:100%; border-radius:4px; }
+  .cat-amount{ font-family:'IBM Plex Mono', monospace; font-size:13px; text-align:right; }
+  .cat-percent{ font-size:11px; color:var(--text-dim); text-align:right; }
+
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:0;
+    width:100%; max-width:430px; display:flex;
+    background:rgba(13,16,24,0.92); backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    padding:10px 8px calc(10px + env(safe-area-inset-bottom,0));
+    z-index:40;
+  }
+  .nav-btn{
+    flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:7px 0; cursor:pointer; color:var(--text-dim); font-family:'IBM Plex Sans', sans-serif; font-size:10px;
+    font-weight:500; border-radius:14px; transition:all .2s;
+  }
+  .nav-btn svg{ width:22px; height:22px; }
+  .nav-btn.active{ color:var(--cyan); background:rgba(0,229,255,0.10); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= HOME ================= -->
+  <section class="view active" id="view-home">
+    <div class="hero-card">
+      <div class="hero-eyebrow" data-setting="hero_eyebrow">Umumiy balans</div>
+      <div class="hero-balance">0<span class="unit">so'm</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-icon income">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5L5 12M12 5l7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="stat-text-label">Daromad</div>
+          <div class="chip-amount">+0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon expense">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M12 19l7-7M12 19l-7-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="stat-text-label">Xarajat</div>
+          <div class="chip-amount">-0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="add-panel">
+      <div class="add-panel-title" data-setting="add_panel_title">Pul kiritish</div>
+      <div class="type-toggle">
+        <button type="button" class="active income" id="tabIncome">Daromad</button>
+        <button type="button" class="expense" id="tabExpense">Xarajat</button>
+      </div>
+
+      <div class="field-label">1. Kategoriya</div>
+      <div class="cat-tile-grid" id="catGrid"></div>
+      <input type="text" class="custom-cat-input" id="customCat" placeholder="Kategoriya nomini kiriting">
+
+      <div class="field-label">2. Sana</div>
+      <input type="date" id="dateInput">
+
+      <div class="field-label">3. Summa</div>
+      <div class="amount-row">
+        <input type="text" inputmode="numeric" id="amountInput" placeholder="0">
+        <span class="amount-unit">so'm</span>
+      </div>
+
+      <div class="field-label">Izoh</div>
+      <textarea id="commentInput" placeholder="Ixtiyoriy izoh..."></textarea>
+
+      <button class="submit-btn income" id="submitBtn" data-setting="submit_btn_label">Qo&#39;shish</button>
+    </div>
+
+    <div class="tx-list-card">
+      <div class="tx-list-title" data-setting="tx_list_title">So&#39;nggi tranzaksiyalar</div>
+      <div id="txList"></div>
+    </div>
+  </section>
+
+  <!-- ================= STATISTIKA ================= -->
+  <section class="view" id="view-stats">
+    <div class="screen-title" data-setting="stats_title">Statistika</div>
+    <div class="screen-sub" data-setting="stats_sub">Daromad va xarajatlaringiz dinamikasi</div>
+
+    <div class="period-toggle">
+      <button type="button" class="active" data-period="week">Haftalik</button>
+      <button type="button" data-period="month">Oylik</button>
+      <button type="button" data-period="year">Yillik</button>
+    </div>
+
+    <div class="chart-card">
+      <div id="statsChart" class="svg-chart-wrap"></div>
+      <div class="legend-row">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--income)"></span>Daromad</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--expense)"></span>Xarajat</div>
+      </div>
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="summary-label">Jami daromad</div>
+        <div class="summary-value income" id="sumIncome">+0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Jami xarajat</div>
+        <div class="summary-value expense" id="sumExpense">-0</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MAQSADLAR ================= -->
+  <section class="view" id="view-goals">
+    <div class="screen-title" data-setting="goals_title">Maqsadlar</div>
+    <div class="screen-sub" data-setting="goals_sub">Pul yig'ish maqsadingizni yarating va kuzating</div>
+
+    <div class="goal-form">
+      <div class="field-label">Maqsad nomi</div>
+      <input type="text" id="goalName" placeholder="Masalan: Noutbuk">
+      <div class="field-label">Maqsad summasi</div>
+      <div class="amount-row">
+        <input type="text" inputmode="numeric" id="goalTarget" placeholder="0">
+        <span class="amount-unit">so'm</span>
+      </div>
+      <button class="submit-btn primary" id="goalCreateBtn" style="margin-top:16px;"><span data-setting="goal_create_btn_label">Maqsad yaratish</span></button>
+    </div>
+
+    <div class="goal-list" id="goalList"></div>
+  </section>
+
+  <!-- ================= TAHLIL ================= -->
+  <section class="view" id="view-analysis">
+    <div class="screen-title" data-setting="analysis_title">Pul qayerga ketyapti</div>
+    <div class="screen-sub" data-setting="analysis_sub">Xarajatlar kategoriyalar bo'yicha taqsimoti &middot; bu oy</div>
+
+    <div class="donut-card">
+      <div id="donutChart" class="donut-svg-wrap"></div>
+    </div>
+
+    <div class="cat-breakdown" id="catBreakdown"></div>
+  </section>
+
+  <!-- ================= KO'PROQ (admin qo'shgan sahifalar) ================= -->
+  <section class="view" id="view-more">
+    <div class="screen-title" data-setting="nav_more_label">Ko'proq</div>
+    <div id="pagesList" style="padding:0 20px; display:flex; flex-direction:column; gap:10px;"></div>
+    <div id="pageDetail" style="display:none; padding:0 20px;"></div>
+  </section>
+
+  <!-- ================= BOTTOM NAV ================= -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="view-home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span data-setting="nav_home_label">Bosh sahifa</span>
+    </button>
+    <button class="nav-btn" data-view="view-stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M11 20V4M18 20v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span data-setting="nav_stats_label">Statistika</span>
+    </button>
+    <button class="nav-btn" data-view="view-goals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg>
+      <span data-setting="nav_goals_label">Maqsadlar</span>
+    </button>
+    <button class="nav-btn" data-view="view-analysis">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 1 0 9 9h-9V3Z" stroke-linejoin="round"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15V3.5Z" stroke-linejoin="round"/></svg>
+      <span data-setting="nav_analysis_label">Tahlil</span>
+    </button>
+    <button class="nav-btn" data-view="view-more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
+      <span data-setting="nav_more_label">Ko'proq</span>
+    </button>
+  </nav>
+
+<script>
+  /* ---------- KATEGORIYA IKONLARI ---------- */
+  const ICONS = {
+    home: '<path d="M4 11.5 12 5l8 6.5M6 10.5v8a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2"/><line x1="3" y1="13" x2="21" y2="13" stroke="currentColor" stroke-width="2"/>',
+    plusCircle: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    dots: '<circle cx="6" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18" cy="12" r="1.7" fill="currentColor"/>',
+    basket: '<path d="M4 8h16l-1.4 10.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8L4 8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="2"/><line x1="9" y1="12" x2="9.6" y2="17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="15" y1="12" x2="14.4" y2="17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    car: '<path d="M3.5 13.5 5 9a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 9l1.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="13.5" width="18" height="4.5" rx="1.5" stroke="currentColor" stroke-width="2"/><circle cx="7.5" cy="18.3" r="1.4" fill="currentColor"/><circle cx="16.5" cy="18.3" r="1.4" fill="currentColor"/>'
+  };
+  function svgIcon(path, size){ return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${path}</svg>`; }
+
+  // Kategoriyalar endi bazadan keladi (adminCategoriesMap: name -> {color, icon_key})
+  let adminCategoriesMap = {};
+  function getCatStyle(name){
+    const c = adminCategoriesMap[name];
+    if (c) return { color: c.color, icon: ICONS[c.icon_key] || ICONS.dots };
+    return { color: '#FFB020', icon: ICONS.dots };
+  }
+
+  /* ---------- TELEGRAM WEB APP INIT ---------- */
+  const tg = window.Telegram ? window.Telegram.WebApp : null;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  async function api(path, options = {}) {
+    const res = await fetch('/api' + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': tg ? tg.initData : '',
+        ...(options.headers || {})
+      }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'So\'rovda xatolik');
+    }
+    return res.json();
+  }
+
+  const fmt = (n) => Number(n || 0).toLocaleString('ru-RU').replace(/,/g, ' ');
+
+  /* ---------- SOZLAMALAR (matn/rang) BAZADAN ---------- */
+  async function loadSettings() {
+    try {
+      const { settings } = await api('/settings');
+      // Ranglarni CSS o'zgaruvchilariga qo'llash
+      const colorMap = {
+        color_bg: '--bg', color_panel: '--panel', color_income: '--income',
+        color_expense: '--expense', color_cyan: '--cyan', color_violet: '--violet', color_amber: '--amber'
+      };
+      Object.entries(colorMap).forEach(([key, cssVar]) => {
+        if (settings[key]) document.documentElement.style.setProperty(cssVar, settings[key]);
+      });
+      // Matnlarni data-setting atributi bo'yicha qo'llash
+      document.querySelectorAll('[data-setting]').forEach(el => {
+        const key = el.dataset.setting;
+        if (settings[key]) el.textContent = settings[key];
+      });
+    } catch (e) { console.error('Sozlamalarni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- NAV SWITCHING ---------- */
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const views = document.querySelectorAll('.view');
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navBtns.forEach(b => b.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.view).classList.add('active');
+    });
+  });
+
+  /* ---------- HOME: ADD MONEY FORM ---------- */
+  let incomeCats = [];
+  let expenseCats = [];
+  let currentType = "income";
+  let selectedCat = null;
+
+  const catGrid = document.getElementById('catGrid');
+  const customCat = document.getElementById('customCat');
+  const tabIncome = document.getElementById('tabIncome');
+  const tabExpense = document.getElementById('tabExpense');
+  const submitBtn = document.getElementById('submitBtn');
+  const dateInput = document.getElementById('dateInput');
+
+  function todayStr(){ return new Date().toISOString().split('T')[0]; }
+  dateInput.value = todayStr();
+
+  async function loadCategories() {
+    try {
+      const { categories } = await api('/categories');
+      adminCategoriesMap = {};
+      categories.forEach(c => { adminCategoriesMap[c.name] = c; });
+      incomeCats = categories.filter(c => c.type === 'income').map(c => c.name);
+      expenseCats = categories.filter(c => c.type === 'expense').map(c => c.name);
+      renderCats();
+    } catch (e) { console.error('Kategoriyalarni yuklashda xatolik:', e.message); }
+  }
+
+  function renderCats(){
+    const cats = currentType === 'income' ? incomeCats : expenseCats;
+    catGrid.innerHTML = '';
+    selectedCat = null;
+    customCat.classList.remove('show');
+    customCat.value = '';
+    cats.forEach(cat => {
+      const style = getCatStyle(cat);
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'cat-tile';
+      tile.innerHTML = `<div class="cat-tile-icon" style="background:${style.color}">${svgIcon(style.icon, 24)}</div><span>${cat}</span>`;
+      tile.addEventListener('click', () => {
+        document.querySelectorAll('.cat-tile').forEach(c => c.classList.remove('selected'));
+        tile.classList.add('selected');
+        selectedCat = cat;
+        customCat.classList.toggle('show', cat === 'Boshqa');
+        if (cat === 'Boshqa') customCat.focus();
+      });
+      catGrid.appendChild(tile);
+    });
+  }
+
+
+  function setType(type){
+    currentType = type;
+    tabIncome.classList.toggle('active', type === 'income');
+    tabExpense.classList.toggle('active', type === 'expense');
+    submitBtn.classList.toggle('income', type === 'income');
+    submitBtn.classList.toggle('expense', type === 'expense');
+    renderCats();
+  }
+  tabIncome.addEventListener('click', () => setType('income'));
+  tabExpense.addEventListener('click', () => setType('expense'));
+
+  function formatNumInput(el){
+    el.addEventListener('input', () => {
+      let raw = el.value.replace(/\D/g, '');
+      el.value = raw ? Number(raw).toLocaleString('ru-RU').replace(/,/g, ' ') : '';
+    });
+  }
+  const amountInput = document.getElementById('amountInput');
+  formatNumInput(amountInput);
+
+  submitBtn.addEventListener('click', async () => {
+    const cat = selectedCat === 'Boshqa' ? (customCat.value.trim() || 'Boshqa') : selectedCat;
+    if (!cat) return;
+    if (!amountInput.value) { amountInput.focus(); return; }
+
+    const payload = {
+      type: currentType,
+      category: cat,
+      amount: Number(amountInput.value.replace(/\D/g, '')),
+      date: dateInput.value,
+      comment: document.getElementById('commentInput').value
+    };
+
+    submitBtn.disabled = true;
+    try {
+      await api('/transactions', { method: 'POST', body: JSON.stringify(payload) });
+      amountInput.value = '';
+      document.getElementById('commentInput').value = '';
+      await loadSummary();
+      await loadStats(currentStatsPeriod);
+      await loadAnalysis();
+      await loadTransactions();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  async function loadSummary() {
+    try {
+      const data = await api('/summary');
+      document.querySelector('.hero-balance').innerHTML =
+        fmt(data.balance) + '<span class="unit">so\'m</span>';
+      document.querySelectorAll('.chip-amount')[0].textContent = '+' + fmt(data.income);
+      document.querySelectorAll('.chip-amount')[1].textContent = '-' + fmt(data.expense);
+    } catch (e) {
+      console.error('Balansni yuklashda xatolik:', e.message);
+    }
+  }
+
+  const trashIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  async function loadTransactions() {
+    const txList = document.getElementById('txList');
+    try {
+      const data = await api('/transactions');
+      if (!data.transactions.length) {
+        txList.innerHTML = '<div class="tx-empty">Hali tranzaksiya yo\'q</div>';
+        return;
+      }
+      txList.innerHTML = data.transactions.map(t => {
+        const style = getCatStyle(t.category);
+        return `
+        <div class="tx-row">
+          <div class="tx-icon-tile" style="background:${style.color}">${svgIcon(style.icon, 18)}</div>
+          <div class="tx-info">
+            <div class="tx-cat">${t.category}</div>
+            <div class="tx-meta">${t.date}${t.comment ? ' &middot; ' + t.comment : ''}</div>
+          </div>
+          <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
+          <button class="tx-delete" data-id="${t.id}" aria-label="O'chirish">${trashIconSvg}</button>
+        </div>
+      `;}).join('');
+
+      document.querySelectorAll('.tx-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Bu tranzaksiyani o'chirmoqchimisiz?")) return;
+          try {
+            await api(`/transactions/${btn.dataset.id}`, { method: 'DELETE' });
+            await Promise.all([loadTransactions(), loadSummary(), loadStats(currentStatsPeriod), loadAnalysis()]);
+          } catch (e) { alert(e.message); }
+        });
+      });
+    } catch (e) {
+      console.error('Tranzaksiyalarni yuklashda xatolik:', e.message);
+    }
+  }
+
+  /* ---------- STATISTIKA CHART (sof SVG) ---------- */
+  let currentStatsPeriod = 'week';
+  const statsChartEl = document.getElementById('statsChart');
+
+  function renderBarChart(container, labels, incomeArr, expenseArr) {
+    if (!labels.length) {
+      container.innerHTML = '<div class="chart-empty">Bu davr uchun ma\'lumot yo\'q</div>';
+      return;
+    }
+    const W = 340, H = 190, padBottom = 22, padTop = 14;
+    const chartH = H - padBottom - padTop;
+    const maxVal = Math.max(1, ...incomeArr, ...expenseArr);
+    const groupW = W / labels.length;
+    const barW = Math.min(14, groupW / 3.2);
+
+    let bars = '';
+    labels.forEach((label, i) => {
+      const cx = groupW * i + groupW / 2;
+      const incH = (incomeArr[i] / maxVal) * chartH;
+      const expH = (expenseArr[i] / maxVal) * chartH;
+      const incX = cx - barW - 2;
+      const expX = cx + 2;
+
+      bars += `<rect x="${incX}" y="${padTop + chartH - incH}" width="${barW}" height="${Math.max(incH,1.5)}" rx="3" fill="var(--income)"><title>Daromad: ${fmt(incomeArr[i])} so'm</title></rect>`;
+      bars += `<rect x="${expX}" y="${padTop + chartH - expH}" width="${barW}" height="${Math.max(expH,1.5)}" rx="3" fill="var(--expense)"><title>Xarajat: ${fmt(expenseArr[i])} so'm</title></rect>`;
+      bars += `<text x="${cx}" y="${H - 4}" text-anchor="middle" class="bar-label">${label}</text>`;
+    });
+
+    container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="0" y1="${padTop + chartH}" x2="${W}" y2="${padTop + chartH}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      ${bars}
+    </svg>`;
+  }
+
+  function renderDonutChart(container, categories) {
+    if (!categories.length) {
+      container.innerHTML = '<div class="chart-empty">Xarajat yo\'q</div>';
+      return;
+    }
+    const total = categories.reduce((a, c) => a + c.amount, 0) || 1;
+    const size = 200, cx = 100, cy = 100, r = 70, strokeW = 26;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    let circles = '';
+    categories.forEach(c => {
+      const frac = c.amount / total;
+      const dash = frac * circumference;
+      circles += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c.color}" stroke-width="${strokeW}"
+        stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-offset}"
+        transform="rotate(-90 ${cx} ${cy})"><title>${c.name}: ${fmt(c.amount)} so'm</title></circle>`;
+      offset += dash;
+    });
+    container.innerHTML = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${circles}</svg>`;
+  }
+
+  async function loadStats(period) {
+    currentStatsPeriod = period;
+    try {
+      const p = await api('/stats?period=' + period);
+      renderBarChart(statsChartEl, p.labels, p.income, p.expense);
+
+      const totalIncome = p.income.reduce((a, b) => a + b, 0);
+      const totalExpense = p.expense.reduce((a, b) => a + b, 0);
+      document.getElementById('sumIncome').textContent = '+' + fmt(totalIncome);
+      document.getElementById('sumExpense').textContent = '-' + fmt(totalExpense);
+    } catch (e) { console.error('Statistikani yuklashda xatolik:', e.message); }
+  }
+
+  document.querySelectorAll('.period-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.period-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadStats(btn.dataset.period);
+    });
+  });
+
+  /* ---------- MAQSADLAR ---------- */
+  let goals = [];
+
+  function renderGoals(){
+    const list = document.getElementById('goalList');
+    list.innerHTML = '';
+    goals.forEach((g) => {
+      const percent = Math.min(100, Math.round((g.current / g.target) * 100));
+      const card = document.createElement('div');
+      card.className = 'goal-card';
+      card.innerHTML = `
+        <div class="goal-top">
+          <div class="goal-name">${g.name}</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="goal-percent">${percent}%</div>
+            <button class="goal-delete" data-id="${g.id}" aria-label="O'chirish">${trashIconSvg}</button>
+          </div>
+        </div>
+        <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${percent}%"></div></div>
+        <div class="goal-nums"><span>${fmt(g.current)} so'm</span><span>${fmt(g.target)} so'm</span></div>
+        <div class="goal-add-row">
+          <input type="text" inputmode="numeric" placeholder="Summa kiriting" data-id="${g.id}" class="goal-add-input">
+          <button data-id="${g.id}" class="goal-add-btn">+ Qo'shish</button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    document.querySelectorAll('.goal-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Bu maqsadni o\'chirmoqchimisiz?')) return;
+        try {
+          await api(`/goals/${btn.dataset.id}`, { method: 'DELETE' });
+          await loadGoals();
+        } catch (e) { alert(e.message); }
+      });
+    });
+
+    document.querySelectorAll('.goal-add-input').forEach(formatNumInput);
+    document.querySelectorAll('.goal-add-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const input = document.querySelector(`.goal-add-input[data-id="${id}"]`);
+        const val = Number(input.value.replace(/\D/g, ''));
+        if (val > 0) {
+          await api(`/goals/${id}/contribute`, { method: 'POST', body: JSON.stringify({ amount: val }) });
+          await loadGoals();
+        }
+      });
+    });
+  }
+
+  async function loadGoals() {
+    try {
+      const data = await api('/goals');
+      goals = data.goals;
+      renderGoals();
+    } catch (e) { console.error(e); }
+  }
+
+  const goalNameInput = document.getElementById('goalName');
+  const goalTargetInput = document.getElementById('goalTarget');
+  formatNumInput(goalTargetInput);
+  document.getElementById('goalCreateBtn').addEventListener('click', async () => {
+    const name = goalNameInput.value.trim();
+    const target = Number(goalTargetInput.value.replace(/\D/g, ''));
+    if (!name || !target) return;
+    await api('/goals', { method: 'POST', body: JSON.stringify({ name, target }) });
+    goalNameInput.value = '';
+    goalTargetInput.value = '';
+    await loadGoals();
+  });
+
+  /* ---------- TAHLIL (DONUT) ---------- */
+  const palette = ['#FF5252', '#00E5FF', '#7C4DFF', '#FFB020', '#00C853', '#00B8D9'];
+
+  async function loadAnalysis() {
+    try {
+      const data = await api('/analysis?period=month');
+      const categories = data.categories.map((c, i) => ({
+        name: c.category, amount: c.total, color: palette[i % palette.length]
+      }));
+      const totalExp = categories.reduce((a, c) => a + c.amount, 0) || 1;
+
+      renderDonutChart(document.getElementById('donutChart'), categories);
+
+      const breakdown = document.getElementById('catBreakdown');
+      breakdown.innerHTML = '';
+      categories.forEach(c => {
+        const pct = Math.round((c.amount / totalExp) * 100);
+        const row = document.createElement('div');
+        row.className = 'cat-row';
+        row.innerHTML = `
+          <span class="cat-dot" style="background:${c.color}"></span>
+          <div class="cat-info">
+            <div class="cat-name">${c.name}</div>
+            <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${pct}%; background:${c.color}"></div></div>
+          </div>
+          <div>
+            <div class="cat-amount">${fmt(c.amount)}</div>
+            <div class="cat-percent">${pct}%</div>
+          </div>
+        `;
+        breakdown.appendChild(row);
+      });
+    } catch (e) { console.error('Tahlilni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- KO'PROQ (admin qo'shgan sahifalar) ---------- */
+  async function loadPages() {
+    const pagesList = document.getElementById('pagesList');
+    const pageDetail = document.getElementById('pageDetail');
+    try {
+      const { pages } = await api('/pages');
+      if (!pages.length) {
+        pagesList.innerHTML = '<div class="tx-empty">Hozircha qo\'shimcha sahifa yo\'q</div>';
+        return;
+      }
+      pagesList.innerHTML = pages.map(p => `
+        <button class="page-list-item" data-id="${p.id}" style="width:100%; text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; color:var(--text); font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:600; cursor:pointer;">${p.title}</button>
+      `).join('');
+
+      document.querySelectorAll('.page-list-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = pages.find(p => p.id == btn.dataset.id);
+          pagesList.style.display = 'none';
+          pageDetail.style.display = 'block';
+          pageDetail.innerHTML = `
+            <button id="backToPages" style="background:none; border:none; color:var(--cyan); font-size:13px; margin-bottom:14px; cursor:pointer;">&larr; Orqaga</button>
+            <div style="background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px;">
+              <div style="font-family:'Space Grotesk',sans-serif; font-size:17px; font-weight:600; margin-bottom:10px;">${page.title}</div>
+              <div style="font-size:14px; color:var(--text-dim); line-height:1.6; white-space:pre-wrap;">${page.body}</div>
+            </div>
+          `;
+          document.getElementById('backToPages').addEventListener('click', () => {
+            pageDetail.style.display = 'none';
+            pagesList.style.display = 'flex';
+          });
+        });
+      });
+    } catch (e) { console.error('Sahifalarni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- BOSHLANG'ICH YUKLASH ---------- */
+  loadSettings();
+  loadCategories();
+  loadSummary();
+  loadStats('week');
+  loadGoals();
+  loadAnalysis();
+  loadTransactions();
+  loadPages();
+</script>
+</body>
+</html>
