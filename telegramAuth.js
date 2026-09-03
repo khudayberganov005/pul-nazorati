@@ -60,4 +60,17 @@ async function requireTelegramAuth(req, res, next) {
   }
 }
 
-module.exports = { requireTelegramAuth, validateInitData };
+function requireAdminAuth(req, res, next) {
+  const password = req.headers['x-admin-password'] || '';
+  const correctPassword = process.env.ADMIN_PASSWORD;
+
+  if (!correctPassword) {
+    return res.status(500).json({ error: 'ADMIN_PASSWORD sozlanmagan (Railway Variables)' });
+  }
+  if (password !== correctPassword) {
+    return res.status(401).json({ error: "Parol noto'g'ri" });
+  }
+  next();
+}
+
+module.exports = { requireTelegramAuth, validateInitData, requireAdminAuth };

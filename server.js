@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool, initDb } = require('./db');
-const { requireTelegramAuth } = require('./telegramAuth');
+const { requireTelegramAuth, requireAdminAuth } = require('./telegramAuth');
 
 const app = express();
 app.use(cors());
@@ -12,6 +12,44 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const api = express.Router();
 api.use(requireTelegramAuth);
+
+/* ---------- KATEGORIYALAR (dinamik, admin boshqaradi) ---------- */
+api.get('/categories', async (req, res) => {
+  try {
+    const type = req.query.type;
+    const q = type
+      ? await pool.query('SELECT * FROM categories WHERE type = $1 ORDER BY sort_order ASC, id ASC', [type])
+      : await pool.query('SELECT * FROM categories ORDER BY type, sort_order ASC, id ASC');
+    res.json({ categories: q.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server xatosi' });
+  }
+});
+
+/* ---------- SOZLAMALAR (matnlar/ranglar, admin boshqaradi) ---------- */
+api.get('/settings', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT key, value FROM app_settings');
+    const settings = {};
+    q.rows.forEach(r => { settings[r.key] = r.value; });
+    res.json({ settings });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server xatosi' });
+  }
+});
+
+/* ---------- QOSHIMCHA SAHIFALAR (admin qo'shadi) ---------- */
+api.get('/pages', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT * FROM content_pages ORDER BY sort_order ASC, id ASC');
+    res.json({ pages: q.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server xatosi' });
+  }
+});
 
 /* ---------- YORDAMCHI: davr uchun sana chegarasi ---------- */
 function periodStartDate(period) {
@@ -216,6 +254,140 @@ api.delete('/goals/:id', async (req, res) => {
 });
 
 app.use('/api', api);
+
+/* ================= ADMIN PANEL API'LARI ================= */
+const admin = express.Router();
+admin.use(requireAdminAuth);
+
+/* --- Kategoriyalar va sahifalarni o'qish (admin panel uchun, Telegram auth kerak emas) --- */
+admin.get('/categories', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT * FROM categories ORDER BY type, sort_order ASC, id ASC');
+    res.json({ categories: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.get('/pages', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT * FROM content_pages ORDER BY sort_order ASC, id ASC');
+    res.json({ pages: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* --- Umumiy ma'lumot (dashboard uchun) --- */
+admin.get('/overview', async (req, res) => {
+  try {
+    const users = await pool.query('SELECT COUNT(*)::int as c FROM users');
+    const tx = await pool.query('SELECT COUNT(*)::int as c FROM transactions');
+    const goals = await pool.query('SELECT COUNT(*)::int as c FROM goals');
+    res.json({ users: users.rows[0].c, transactions: tx.rows[0].c, goals: goals.rows[0].c });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.get('/users', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    res.json({ users: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.get('/transactions', async (req, res) => {
+  try {
+    const q = await pool.query(`
+      SELECT t.*, u.first_name, u.telegram_id
+      FROM transactions t JOIN users u ON u.id = t.user_id
+      ORDER BY t.created_at DESC LIMIT 200
+    `);
+    res.json({ transactions: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* --- Kategoriyalar CRUD --- */
+admin.post('/categories', async (req, res) => {
+  try {
+    const { type, name, color, icon_key, sort_order } = req.body;
+    if (!['income', 'expense'].includes(type) || !name) return res.status(400).json({ error: "Maydonlar to'liq emas" });
+    const q = await pool.query(
+      'INSERT INTO categories (type, name, color, icon_key, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [type, name, color || '#FFB020', icon_key || 'dots', sort_order || 0]
+    );
+    res.json({ category: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.put('/categories/:id', async (req, res) => {
+  try {
+    const { name, color, icon_key, sort_order } = req.body;
+    const q = await pool.query(
+      'UPDATE categories SET name=$1, color=$2, icon_key=$3, sort_order=$4 WHERE id=$5 RETURNING *',
+      [name, color, icon_key, sort_order || 0, req.params.id]
+    );
+    if (!q.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ category: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.delete('/categories/:id', async (req, res) => {
+  try {
+    const q = await pool.query('DELETE FROM categories WHERE id=$1', [req.params.id]);
+    if (q.rowCount === 0) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* --- Sozlamalar (matn/rang) CRUD --- */
+admin.get('/settings', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT key, value FROM app_settings ORDER BY key ASC');
+    res.json({ settings: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.put('/settings/:key', async (req, res) => {
+  try {
+    const { value } = req.body;
+    await pool.query(
+      'INSERT INTO app_settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2',
+      [req.params.key, value]
+    );
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* --- Qo'shimcha sahifalar CRUD --- */
+admin.post('/pages', async (req, res) => {
+  try {
+    const { title, body, sort_order } = req.body;
+    if (!title || !body) return res.status(400).json({ error: "Maydonlar to'liq emas" });
+    const q = await pool.query(
+      'INSERT INTO content_pages (title, body, sort_order) VALUES ($1,$2,$3) RETURNING *',
+      [title, body, sort_order || 0]
+    );
+    res.json({ page: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.put('/pages/:id', async (req, res) => {
+  try {
+    const { title, body, sort_order } = req.body;
+    const q = await pool.query(
+      'UPDATE content_pages SET title=$1, body=$2, sort_order=$3 WHERE id=$4 RETURNING *',
+      [title, body, sort_order || 0, req.params.id]
+    );
+    if (!q.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ page: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.delete('/pages/:id', async (req, res) => {
+  try {
+    const q = await pool.query('DELETE FROM content_pages WHERE id=$1', [req.params.id]);
+    if (q.rowCount === 0) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+app.use('/api/admin', admin);
 
 const PORT = process.env.PORT || 3000;
 
