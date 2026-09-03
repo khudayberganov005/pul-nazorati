@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pul Nazorati — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E16; --panel:#131722; --panel-2:#1A1F2E; --line:rgba(255,255,255,0.09);
+    --text:#F5F6FA; --text-dim:rgba(245,246,250,0.55);
+    --cyan:#00E5FF; --violet:#7C4DFF; --income:#00C853; --expense:#FF5252; --amber:#FFB020;
+    --gradient: linear-gradient(135deg, #00E5FF 0%, #7C4DFF 100%);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--text); font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{ font-family:'Space Grotesk', sans-serif; font-weight:600; }
+  input, textarea, select{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px; color:var(--text);
+    padding:10px 12px; font-family:'IBM Plex Sans', sans-serif; font-size:13px; outline:none; width:100%;
+  }
+  button{ font-family:'IBM Plex Sans', sans-serif; cursor:pointer; }
+  .btn{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; }
+  .btn-primary{ background:var(--gradient); border:none; color:#0B0E16; }
+  .btn-danger{ background:rgba(255,82,82,0.12); border:1px solid var(--expense); color:var(--expense); }
+
+  /* ---- login ---- */
+  #loginScreen{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+  .login-box{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:32px 28px; width:100%; max-width:340px; text-align:center; }
+  .login-box h1{ font-size:20px; margin-bottom:6px; }
+  .login-box p{ font-size:13px; color:var(--text-dim); margin-bottom:20px; }
+  .login-box input{ margin-bottom:12px; text-align:center; }
+  .login-error{ color:var(--expense); font-size:12px; margin-top:8px; min-height:16px; }
+
+  /* ---- app shell ---- */
+  #appShell{ display:none; }
+  header{ padding:20px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  header h1{ font-size:18px; }
+  header span{ font-size:12px; color:var(--text-dim); }
+
+  .tabs{ display:flex; gap:4px; padding:14px 24px 0; overflow-x:auto; }
+  .tab-btn{
+    background:none; border:none; color:var(--text-dim); padding:10px 16px; font-size:13px; font-weight:600;
+    border-radius:10px 10px 0 0; white-space:nowrap;
+  }
+  .tab-btn.active{ color:var(--text); background:var(--panel); }
+
+  main{ padding:20px 24px 60px; max-width:900px; }
+  .tab-content{ display:none; }
+  .tab-content.active{ display:block; }
+
+  .stat-cards{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 20px; min-width:120px; }
+  .stat-card .num{ font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; }
+  .stat-card .label{ font-size:11px; color:var(--text-dim); margin-top:4px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border-radius:14px; overflow:hidden; }
+  th, td{ text-align:left; padding:10px 12px; font-size:12px; border-bottom:1px solid var(--line); }
+  th{ color:var(--text-dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:0.06em; }
+  tr:last-child td{ border-bottom:none; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .card h3{ font-size:14px; margin-bottom:14px; }
+  .form-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .form-row > *{ flex:1; min-width:110px; }
+
+  .cat-row-admin{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .cat-row-admin:last-child{ border-bottom:none; }
+  .cat-swatch{ width:34px; height:34px; border-radius:10px; flex-shrink:0; }
+  .cat-row-admin .name{ flex:1; font-size:13px; font-weight:600; }
+  .cat-row-admin .type-badge{ font-size:10px; padding:3px 8px; border-radius:6px; font-weight:600; }
+  .type-badge.income{ background:rgba(0,200,83,0.14); color:var(--income); }
+  .type-badge.expense{ background:rgba(255,82,82,0.14); color:var(--expense); }
+
+  .settings-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row label{ width:200px; font-size:12px; color:var(--text-dim); flex-shrink:0; }
+  .settings-row input[type="color"]{ width:44px; height:34px; padding:2px; }
+
+  .page-row{ padding:14px 0; border-bottom:1px solid var(--line); }
+  .page-row:last-child{ border-bottom:none; }
+  .page-row-title{ font-weight:600; font-size:14px; margin-bottom:8px; }
+  .page-actions{ display:flex; gap:8px; margin-top:8px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 18px;
+    font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:100;
+  }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>Pul Nazorati</h1>
+    <p>Admin panelga kirish uchun parolni kiriting</p>
+    <input type="password" id="adminPasswordInput" placeholder="Admin parol">
+    <button class="btn btn-primary" style="width:100%;" id="loginBtn">Kirish</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="appShell">
+  <header>
+    <h1>Pul Nazorati — Admin</h1>
+    <span id="overviewSummary"></span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-overview">Umumiy</button>
+    <button class="tab-btn" data-tab="tab-categories">Kategoriyalar</button>
+    <button class="tab-btn" data-tab="tab-texts">Matnlar</button>
+    <button class="tab-btn" data-tab="tab-colors">Ranglar</button>
+    <button class="tab-btn" data-tab="tab-pages">Sahifalar</button>
+    <button class="tab-btn" data-tab="tab-transactions">Tranzaksiyalar</button>
+  </div>
+
+  <main>
+    <!-- OVERVIEW -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="stat-cards">
+        <div class="stat-card"><div class="num" id="ovUsers">-</div><div class="label">Foydalanuvchilar</div></div>
+        <div class="stat-card"><div class="num" id="ovTx">-</div><div class="label">Tranzaksiyalar</div></div>
+        <div class="stat-card"><div class="num" id="ovGoals">-</div><div class="label">Maqsadlar</div></div>
+      </div>
+      <div class="card">
+        <h3>Foydalanuvchilar</h3>
+        <table id="usersTable"><thead><tr><th>ID</th><th>Ism</th><th>Telegram ID</th><th>Ro'yxatdan o'tgan</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="tab-content" id="tab-categories">
+      <div class="card">
+        <h3>Yangi kategoriya qo'shish</h3>
+        <div class="form-row">
+          <select id="newCatType"><option value="income">Daromad</option><option value="expense">Xarajat</option></select>
+          <input type="text" id="newCatName" placeholder="Nomi (masalan: Kommunal)">
+          <input type="color" id="newCatColor" value="#00E5FF" style="max-width:60px;">
+          <select id="newCatIcon">
+            <option value="home">Uy</option>
+            <option value="briefcase">Portfel</option>
+            <option value="plusCircle">Plyus-doira</option>
+            <option value="basket">Savat</option>
+            <option value="car">Mashina</option>
+            <option value="dots">Uch nuqta</option>
+          </select>
+          <button class="btn btn-primary" id="addCatBtn">Qo'shish</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Daromad kategoriyalari</h3>
+        <div id="incomeCatList"></div>
+      </div>
+      <div class="card">
+        <h3>Xarajat kategoriyalari</h3>
+        <div id="expenseCatList"></div>
+      </div>
+    </div>
+
+    <!-- TEXTS -->
+    <div class="tab-content" id="tab-texts">
+      <div class="card">
+        <h3>Ilova matnlari</h3>
+        <div id="textSettingsList"></div>
+      </div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="tab-content" id="tab-colors">
+      <div class="card">
+        <h3>Rang sxemasi</h3>
+        <div id="colorSettingsList"></div>
+      </div>
+    </div>
+
+    <!-- PAGES -->
+    <div class="tab-content" id="tab-pages">
+      <div class="card">
+        <h3>Yangi sahifa qo'shish</h3>
+        <input type="text" id="newPageTitle" placeholder="Sarlavha" style="margin-bottom:10px;">
+        <textarea id="newPageBody" placeholder="Matn (masalan: yordam, qoidalar, biz haqimizda)" rows="4" style="margin-bottom:10px;"></textarea>
+        <button class="btn btn-primary" id="addPageBtn">Sahifa qo'shish</button>
+      </div>
+      <div class="card">
+        <h3>Mavjud sahifalar (ilovada "Ko'proq" bo'limida chiqadi)</h3>
+        <div id="pagesAdminList"></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div class="tab-content" id="tab-transactions">
+      <div class="card">
+        <h3>So'nggi tranzaksiyalar (200 tagacha)</h3>
+        <table id="txTable"><thead><tr><th>Foydalanuvchi</th><th>Turi</th><th>Kategoriya</th><th>Summa</th><th>Sana</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let ADMIN_PASSWORD = sessionStorage.getItem('adminPassword') || '';
+
+  async function adminApi(path, options = {}) {
+    const res = await fetch('/api/admin' + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': ADMIN_PASSWORD,
+        ...(options.headers || {})
+      }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'So\'rovda xatolik');
+    }
+    return res.json();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  /* ---------- LOGIN ---------- */
+  const loginScreen = document.getElementById('loginScreen');
+  const appShell = document.getElementById('appShell');
+  const loginError = document.getElementById('loginError');
+
+  async function tryLogin(password) {
+    ADMIN_PASSWORD = password;
+    try {
+      await adminApi('/overview');
+      sessionStorage.setItem('adminPassword', password);
+      loginScreen.style.display = 'none';
+      appShell.style.display = 'block';
+      loadAll();
+    } catch (e) {
+      loginError.textContent = "Parol noto'g'ri yoki server xatosi";
+      ADMIN_PASSWORD = '';
+    }
+  }
+
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    const pw = document.getElementById('adminPasswordInput').value;
+    if (pw) tryLogin(pw);
+  });
+  document.getElementById('adminPasswordInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+
+  if (ADMIN_PASSWORD) tryLogin(ADMIN_PASSWORD);
+
+  /* ---------- TABS ---------- */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  const fmt = (n) => Number(n || 0).toLocaleString('ru-RU').replace(/,/g, ' ');
+
+  /* ---------- OVERVIEW ---------- */
+  async function loadOverview() {
+    const ov = await adminApi('/overview');
+    document.getElementById('ovUsers').textContent = ov.users;
+    document.getElementById('ovTx').textContent = ov.transactions;
+    document.getElementById('ovGoals').textContent = ov.goals;
+    document.getElementById('overviewSummary').textContent = `${ov.users} foydalanuvchi · ${ov.transactions} tranzaksiya`;
+
+    const { users } = await adminApi('/users');
+    document.querySelector('#usersTable tbody').innerHTML = users.map(u => `
+      <tr><td>${u.id}</td><td>${u.first_name || '-'}</td><td>${u.telegram_id}</td><td>${new Date(u.created_at).toLocaleDateString('uz-UZ')}</td></tr>
+    `).join('') || '<tr><td colspan="4" style="color:var(--text-dim)">Hozircha foydalanuvchi yo\'q</td></tr>';
+  }
+
+  /* ---------- CATEGORIES ---------- */
+  const ICON_LABELS = { home:'Uy', briefcase:'Portfel', plusCircle:'Plyus-doira', basket:'Savat', car:'Mashina', dots:'Uch nuqta' };
+
+  function renderCatList(categories) {
+    const incomeList = document.getElementById('incomeCatList');
+    const expenseList = document.getElementById('expenseCatList');
+    incomeList.innerHTML = '';
+    expenseList.innerHTML = '';
+
+    categories.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'cat-row-admin';
+      row.innerHTML = `
+        <div class="cat-swatch" style="background:${c.color}"></div>
+        <div class="name">${c.name}</div>
+        <span class="type-badge ${c.type}">${c.type === 'income' ? 'Daromad' : 'Xarajat'}</span>
+        <button class="btn btn-danger" data-id="${c.id}" style="padding:6px 12px;">O'chirish</button>
+      `;
+      row.querySelector('button').addEventListener('click', async () => {
+        if (!confirm(`"${c.name}" kategoriyasini o'chirmoqchimisiz?`)) return;
+        try {
+          await adminApi(`/categories/${c.id}`, { method: 'DELETE' });
+          showToast("Kategoriya o'chirildi");
+          loadCategoriesAdmin();
+        } catch (e) { alert(e.message); }
+      });
+      (c.type === 'income' ? incomeList : expenseList).appendChild(row);
+    });
+
+    if (!categories.filter(c => c.type === 'income').length) incomeList.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Kategoriya yo\'q</p>';
+    if (!categories.filter(c => c.type === 'expense').length) expenseList.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Kategoriya yo\'q</p>';
+  }
+
+  async function loadCategoriesAdmin() {
+    try {
+      const { categories } = await adminApi('/categories');
+      renderCatList(categories);
+    } catch (e) { console.error(e); }
+  }
+
+  document.getElementById('addCatBtn').addEventListener('click', async () => {
+    const type = document.getElementById('newCatType').value;
+    const name = document.getElementById('newCatName').value.trim();
+    const color = document.getElementById('newCatColor').value;
+    const icon_key = document.getElementById('newCatIcon').value;
+    if (!name) return alert('Kategoriya nomini kiriting');
+    try {
+      await adminApi('/categories', { method: 'POST', body: JSON.stringify({ type, name, color, icon_key, sort_order: 99 }) });
+      document.getElementById('newCatName').value = '';
+      showToast("Kategoriya qo'shildi");
+      loadCategoriesAdmin();
+    } catch (e) { alert(e.message); }
+  });
+
+  /* ---------- TEXT SETTINGS ---------- */
+  const TEXT_KEYS = [
+    ['hero_eyebrow', 'Balans yozuvi'], ['add_panel_title', "Pul kiritish sarlavhasi"],
+    ['tx_list_title', "Tranzaksiyalar ro'yxati sarlavhasi"], ['submit_btn_label', "Qo'shish tugmasi matni"],
+    ['nav_home_label', 'Nav: Bosh sahifa'], ['nav_stats_label', 'Nav: Statistika'],
+    ['nav_goals_label', 'Nav: Maqsadlar'], ['nav_analysis_label', 'Nav: Tahlil'], ['nav_more_label', "Nav: Ko'proq"],
+    ['stats_title', 'Statistika sarlavhasi'], ['stats_sub', 'Statistika tavsifi'],
+    ['goals_title', 'Maqsadlar sarlavhasi'], ['goals_sub', 'Maqsadlar tavsifi'],
+    ['analysis_title', 'Tahlil sarlavhasi'], ['analysis_sub', 'Tahlil tavsifi'],
+    ['goal_create_btn_label', "Maqsad yaratish tugmasi"]
+  ];
+  const COLOR_KEYS = [
+    ['color_bg', 'Fon rangi'], ['color_panel', 'Panel rangi'], ['color_income', 'Daromad rangi'],
+    ['color_expense', 'Xarajat rangi'], ['color_cyan', 'Cyan (asosiy)'], ['color_violet', 'Binafsha'], ['color_amber', 'Amber']
+  ];
+
+  let settingsCache = {};
+
+  async function loadSettingsAdmin() {
+    const { settings } = await adminApi('/settings');
+    settingsCache = {};
+    settings.forEach(s => { settingsCache[s.key] = s.value; });
+
+    const textList = document.getElementById('textSettingsList');
+    textList.innerHTML = TEXT_KEYS.map(([key, label]) => `
+      <div class="settings-row">
+        <label>${label}</label>
+        <input type="text" data-key="${key}" value="${(settingsCache[key] || '').replace(/"/g,'&quot;')}">
+        <button class="btn" data-save="${key}" style="flex:0 0 auto;">Saqlash</button>
+      </div>
+    `).join('');
+
+    const colorList = document.getElementById('colorSettingsList');
+    colorList.innerHTML = COLOR_KEYS.map(([key, label]) => `
+      <div class="settings-row">
+        <label>${label}</label>
+        <input type="color" data-key="${key}" value="${settingsCache[key] || '#000000'}">
+        <input type="text" data-key-text="${key}" value="${settingsCache[key] || ''}" style="max-width:110px; font-family:'IBM Plex Mono',monospace;">
+        <button class="btn" data-save="${key}" style="flex:0 0 auto;">Saqlash</button>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('#textSettingsList [data-save]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.save;
+        const value = document.querySelector(`#textSettingsList [data-key="${key}"]`).value;
+        try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
+        catch (e) { alert(e.message); }
+      });
+    });
+
+    document.querySelectorAll('#colorSettingsList input[type="color"]').forEach(colorInput => {
+      colorInput.addEventListener('input', () => {
+        const key = colorInput.dataset.key;
+        document.querySelector(`#colorSettingsList [data-key-text="${key}"]`).value = colorInput.value;
+      });
+    });
+
+    document.querySelectorAll('#colorSettingsList [data-save]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.save;
+        const value = document.querySelector(`#colorSettingsList [data-key-text="${key}"]`).value;
+        try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
+        catch (e) { alert(e.message); }
+      });
+    });
+  }
+
+  /* ---------- PAGES ---------- */
+  async function loadPagesAdmin() {
+    const { pages } = await adminApi('/pages').catch(() => ({ pages: [] }));
+    const list = document.getElementById('pagesAdminList');
+    if (!pages.length) { list.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Hozircha sahifa yo\'q</p>'; return; }
+    list.innerHTML = pages.map(p => `
+      <div class="page-row">
+        <div class="page-row-title">${p.title}</div>
+        <div style="font-size:12px; color:var(--text-dim); white-space:pre-wrap;">${p.body}</div>
+        <div class="page-actions">
+          <button class="btn btn-danger" data-id="${p.id}">O'chirish</button>
+        </div>
+      </div>
+    `).join('');
+    list.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm("Bu sahifani o'chirmoqchimisiz?")) return;
+        try { await adminApi(`/pages/${btn.dataset.id}`, { method: 'DELETE' }); showToast("O'chirildi"); loadPagesAdmin(); }
+        catch (e) { alert(e.message); }
+      });
+    });
+  }
+
+  document.getElementById('addPageBtn').addEventListener('click', async () => {
+    const title = document.getElementById('newPageTitle').value.trim();
+    const body = document.getElementById('newPageBody').value.trim();
+    if (!title || !body) return alert("Sarlavha va matnni to'ldiring");
+    try {
+      await adminApi('/pages', { method: 'POST', body: JSON.stringify({ title, body, sort_order: 99 }) });
+      document.getElementById('newPageTitle').value = '';
+      document.getElementById('newPageBody').value = '';
+      showToast("Sahifa qo'shildi");
+      loadPagesAdmin();
+    } catch (e) { alert(e.message); }
+  });
+
+  /* ---------- TRANSACTIONS ---------- */
+  async function loadTransactionsAdmin() {
+    const { transactions } = await adminApi('/transactions');
+    document.querySelector('#txTable tbody').innerHTML = transactions.map(t => `
+      <tr>
+        <td>${t.first_name || t.telegram_id}</td>
+        <td style="color:${t.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${t.type === 'income' ? 'Daromad' : 'Xarajat'}</td>
+        <td>${t.category}</td>
+        <td>${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</td>
+        <td>${t.date}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" style="color:var(--text-dim)">Tranzaksiya yo\'q</td></tr>';
+  }
+
+  async function loadAll() {
+    loadOverview().catch(console.error);
+    loadCategoriesAdmin().catch(console.error);
+    loadSettingsAdmin().catch(console.error);
+    loadPagesAdmin().catch(console.error);
+    loadTransactionsAdmin().catch(console.error);
+  }
+</script>
+</body>
+</html>
