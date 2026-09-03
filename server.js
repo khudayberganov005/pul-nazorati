@@ -4,6 +4,8 @@ const cors = require('cors');
 const path = require('path');
 const { pool, initDb } = require('./db');
 const { requireTelegramAuth, requireAdminAuth } = require('./telegramAuth');
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 
 const app = express();
 app.use(cors());
