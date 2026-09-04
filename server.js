@@ -15,6 +15,12 @@ let botInstance = null; // /admin/notifications/send uchun, initDb() tugagach to
 const api = express.Router();
 api.use(requireTelegramAuth);
 
+/* MUHIM: admin router /api routerdan OLDIN ulanadi, aks holda '/api' prefiksi
+   '/api/admin/*' so'rovlarini ham "yutib" oladi va noto'g'ri (Telegram) auth talab qiladi */
+const admin = express.Router();
+admin.use(requireAdminAuth);
+app.use('/api/admin', admin);
+
 /* ---------- KATEGORIYALAR (dinamik, admin boshqaradi) ---------- */
 api.get('/categories', async (req, res) => {
   try {
@@ -257,9 +263,7 @@ api.delete('/goals/:id', async (req, res) => {
 
 app.use('/api', api);
 
-/* ================= ADMIN PANEL API'LARI ================= */
-const admin = express.Router();
-admin.use(requireAdminAuth);
+/* ================= ADMIN PANEL API'LARI (admin router yuqorida allaqachon ulangan) ================= */
 
 /* --- Kategoriyalar va sahifalarni o'qish (admin panel uchun, Telegram auth kerak emas) --- */
 admin.get('/categories', async (req, res) => {
@@ -555,8 +559,6 @@ admin.delete('/pages/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
-
-app.use('/api/admin', admin);
 
 const PORT = process.env.PORT || 3000;
 
