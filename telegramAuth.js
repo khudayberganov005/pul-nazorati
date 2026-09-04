@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getOrCreateUser } = require('./db');
+const { getOrCreateUser, touchUserActivity } = require('./db');
 
 /**
  * Telegram WebApp initData haqiqiyligini tekshiradi.
@@ -53,6 +53,12 @@ async function requireTelegramAuth(req, res, next) {
     }
 
     req.dbUser = await getOrCreateUser(String(result.user.id), result.user.first_name);
+
+    if (req.dbUser.is_blocked) {
+      return res.status(403).json({ error: "Sizning hisobingiz administrator tomonidan bloklangan" });
+    }
+    touchUserActivity(req.dbUser.id); // fon rejimida, javobni kutmaymiz
+
     next();
   } catch (err) {
     console.error('Auth xatosi:', err);

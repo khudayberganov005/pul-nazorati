@@ -8,6 +8,17 @@ const pool = new Pool({
     : false
 });
 
+// Mavjud jadvalga ustun bo'lmasa qo'shadi (eski ma'lumotlarga tegmaydi)
+async function addColumnIfMissing(table, column, definition) {
+  const check = await pool.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`,
+    [table, column]
+  );
+  if (check.rows.length === 0) {
+    await pool.query(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  }
+}
+
 async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -118,7 +129,9 @@ async function initDb() {
     color_expense: '#FF5252',
     color_cyan: '#00E5FF',
     color_violet: '#7C4DFF',
-    color_amber: '#FFB020'
+    color_amber: '#FFB020',
+    app_name: 'Pul Nazorati',
+    currency: "so'm"
   };
   for (const [key, value] of Object.entries(defaultSettings)) {
     await pool.query(
@@ -128,6 +141,32 @@ async function initDb() {
   }
 
   console.log("Ma'lumotlar bazasi jadvallari tayyor (PostgreSQL).");
+
+  // ---- YANGI: admin dashboard uchun qo'shimcha ustunlar (mavjudni buzmasdan) ----
+  await addColumnIfMissing('users', 'is_blocked', 'is_blocked BOOLEAN NOT NULL DEFAULT false');
+  await addColumnIfMissing('users', 'last_active_at', 'last_active_at TIMESTAMPTZ DEFAULT NOW()');
+
+  await addColumnIfMissing('categories', 'emoji', 'emoji TEXT');
+  await addColumnIfMissing('categories', 'emoji_size', 'emoji_size INTEGER NOT NULL DEFAULT 32');
+  await addColumnIfMissing('categories', 'emoji_bg', 'emoji_bg TEXT');
+  await addColumnIfMissing('categories', 'emoji_radius', 'emoji_radius INTEGER NOT NULL DEFAULT 14');
+  await addColumnIfMissing('categories', 'is_active', 'is_active BOOLEAN NOT NULL DEFAULT true');
+
+  await addColumnIfMissing('goals', 'status', "status TEXT NOT NULL DEFAULT 'active'");
+  await addColumnIfMissing('goals', 'started_at', 'started_at TIMESTAMPTZ DEFAULT NOW()');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notifications_log (
+      id SERIAL PRIMARY KEY,
+      segment TEXT NOT NULL,
+      message TEXT NOT NULL,
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  console.log("Admin panel uchun qo'shimcha ustunlar tayyor.");
 }
 
 async function getOrCreateUser(telegramId, firstName) {
@@ -141,4 +180,13 @@ async function getOrCreateUser(telegramId, firstName) {
   return inserted.rows[0];
 }
 
-module.exports = { pool, initDb, getOrCreateUser };
+// Har API so'rovda foydalanuvchining oxirgi faollik vaqtini yangilaydi
+async function touchUserActivity(userId) {
+  try {
+    await pool.query('UPDATE users SET last_active_at = NOW() WHERE id = $1', [userId]);
+  } catch (err) {
+    console.error('Faollik vaqtini yangilashda xatolik:', err);
+  }
+}
+
+module.exports = { pool, initDb, getOrCreateUser, touchUserActivity };
