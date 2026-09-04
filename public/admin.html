@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pul Nazorati — Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0B0E16; --panel:#131722; --panel-2:#1A1F2E; --line:rgba(255,255,255,0.09);
+    --bg:#0A0C12; --sidebar:#0F1219; --panel:#131722; --panel-2:#1A1F2E; --line:rgba(255,255,255,0.08);
     --text:#F5F6FA; --text-dim:rgba(245,246,250,0.55);
     --cyan:#00E5FF; --violet:#7C4DFF; --income:#00C853; --expense:#FF5252; --amber:#FFB020;
-    --gradient: linear-gradient(135deg, #00E5FF 0%, #7C4DFF 100%);
+    --blue:#3B82F6; --gradient: linear-gradient(135deg, #00E5FF 0%, #7C4DFF 100%);
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
@@ -27,6 +27,7 @@
   .btn{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:9px 16px; font-size:13px; font-weight:600; }
   .btn-primary{ background:var(--gradient); border:none; color:#0B0E16; }
   .btn-danger{ background:rgba(255,82,82,0.12); border:1px solid var(--expense); color:var(--expense); }
+  .btn-sm{ padding:6px 12px; font-size:12px; }
 
   /* ---- login ---- */
   #loginScreen{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
@@ -38,53 +39,131 @@
 
   /* ---- app shell ---- */
   #appShell{ display:none; }
-  header{ padding:20px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
-  header h1{ font-size:18px; }
-  header span{ font-size:12px; color:var(--text-dim); }
+  .layout{ display:flex; min-height:100vh; }
 
-  .tabs{ display:flex; gap:4px; padding:14px 24px 0; overflow-x:auto; }
-  .tab-btn{
-    background:none; border:none; color:var(--text-dim); padding:10px 16px; font-size:13px; font-weight:600;
-    border-radius:10px 10px 0 0; white-space:nowrap;
+  .sidebar{
+    width:230px; background:var(--sidebar); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; flex-shrink:0; transition:width .2s;
   }
-  .tab-btn.active{ color:var(--text); background:var(--panel); }
+  .sidebar-header{ padding:20px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line); }
+  .sidebar-logo{ width:34px; height:34px; border-radius:10px; background:var(--gradient); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .sidebar-header div span{ display:block; }
+  .sidebar-header .name{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; }
+  .sidebar-header .sub{ font-size:11px; color:var(--text-dim); }
 
-  main{ padding:20px 24px 60px; max-width:900px; }
-  .tab-content{ display:none; }
-  .tab-content.active{ display:block; }
+  .sidebar-nav{ flex:1; padding:12px 10px; overflow-y:auto; }
+  .side-btn{
+    width:100%; display:flex; align-items:center; gap:10px; background:none; border:none; color:var(--text-dim);
+    padding:10px 12px; border-radius:10px; font-size:13px; font-weight:500; text-align:left; margin-bottom:2px;
+  }
+  .side-btn .emoji{ font-size:16px; width:20px; text-align:center; }
+  .side-btn.active{ background:var(--panel); color:var(--text); }
+  .side-btn:hover:not(.active){ background:rgba(255,255,255,0.04); }
 
-  .stat-cards{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
-  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 20px; min-width:120px; }
-  .stat-card .num{ font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; }
-  .stat-card .label{ font-size:11px; color:var(--text-dim); margin-top:4px; }
+  .sidebar-footer{ padding:14px; border-top:1px solid var(--line); }
+  .sidebar-footer .btn{ width:100%; }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel); border-radius:14px; overflow:hidden; }
-  th, td{ text-align:left; padding:10px 12px; font-size:12px; border-bottom:1px solid var(--line); }
+  .main-col{ flex:1; min-width:0; display:flex; flex-direction:column; }
+
+  .topbar{
+    padding:16px 26px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+  }
+  .topbar h2{ font-size:19px; }
+  .topbar .sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .period-pills{ display:flex; gap:6px; flex-wrap:wrap; }
+  .period-pill{ background:var(--panel); border:1px solid var(--line); color:var(--text-dim); padding:7px 13px; border-radius:9px; font-size:12px; font-weight:600; }
+  .period-pill.active{ background:var(--gradient); color:#0B0E16; border-color:transparent; }
+
+  main{ padding:22px 26px 60px; }
+  .page{ display:none; }
+  .page.active{ display:block; }
+
+  /* ---- stat cards ---- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
+  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+  .stat-card .top-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .stat-card .icon-box{ width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; }
+  .stat-card .num{ font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; margin-top:10px; }
+  .stat-card .label{ font-size:12px; color:var(--text-dim); margin-top:3px; }
+  .stat-card .delta{ font-size:11px; margin-top:8px; font-weight:600; }
+  .delta.up{ color:var(--income); } .delta.down{ color:var(--expense); }
+
+  /* ---- charts ---- */
+  .chart-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:16px; margin-bottom:20px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  .card h3{ font-size:14px; margin-bottom:14px; }
+  .card .card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .svg-chart{ width:100%; height:auto; display:block; }
+  .chart-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:40px 0; }
+  .legend-row{ display:flex; gap:16px; margin-top:10px; font-size:11px; color:var(--text-dim); }
+  .legend-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+
+  /* ---- tables ---- */
+  .table-toolbar{ display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .table-toolbar input[type="text"]{ max-width:240px; }
+  .table-toolbar select{ max-width:160px; }
+  table{ width:100%; border-collapse:collapse; }
+  th, td{ text-align:left; padding:10px 12px; font-size:12.5px; border-bottom:1px solid var(--line); }
   th{ color:var(--text-dim); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:0.06em; }
   tr:last-child td{ border-bottom:none; }
+  tr.clickable{ cursor:pointer; }
+  tr.clickable:hover td{ background:rgba(255,255,255,0.02); }
+  .badge{ font-size:10px; padding:3px 9px; border-radius:6px; font-weight:600; display:inline-block; }
+  .badge.income{ background:rgba(0,200,83,0.14); color:var(--income); }
+  .badge.expense{ background:rgba(255,82,82,0.14); color:var(--expense); }
+  .badge.blocked{ background:rgba(255,82,82,0.14); color:var(--expense); }
+  .badge.ok{ background:rgba(0,200,83,0.14); color:var(--income); }
+  .empty-row td{ text-align:center; color:var(--text-dim); padding:26px; }
 
-  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
-  .card h3{ font-size:14px; margin-bottom:14px; }
-  .form-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
-  .form-row > *{ flex:1; min-width:110px; }
+  /* ---- category emoji editor ---- */
+  .cat-editor-layout{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; }
+  @media (max-width:860px){ .cat-editor-layout{ grid-template-columns:1fr; } }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .form-grid label{ font-size:11px; color:var(--text-dim); display:block; margin-bottom:5px; }
+  .slider-row{ display:flex; align-items:center; gap:10px; }
+  .slider-row input[type="range"]{ flex:1; }
+  .slider-row span{ font-family:'IBM Plex Mono',monospace; font-size:12px; width:44px; text-align:right; }
+
+  .emoji-preview-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px 0; }
+  .emoji-preview-tile{ display:flex; align-items:center; justify-content:center; transition:all .1s; }
+  .emoji-preview-label{ margin-top:12px; font-size:12px; color:var(--text-dim); }
 
   .cat-row-admin{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
   .cat-row-admin:last-child{ border-bottom:none; }
-  .cat-swatch{ width:34px; height:34px; border-radius:10px; flex-shrink:0; }
+  .cat-swatch{ width:38px; height:38px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
   .cat-row-admin .name{ flex:1; font-size:13px; font-weight:600; }
-  .cat-row-admin .type-badge{ font-size:10px; padding:3px 8px; border-radius:6px; font-weight:600; }
-  .type-badge.income{ background:rgba(0,200,83,0.14); color:var(--income); }
-  .type-badge.expense{ background:rgba(255,82,82,0.14); color:var(--expense); }
+  .cat-row-admin .actions{ display:flex; gap:6px; }
 
+  /* ---- settings rows ---- */
   .settings-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
   .settings-row:last-child{ border-bottom:none; }
-  .settings-row label{ width:200px; font-size:12px; color:var(--text-dim); flex-shrink:0; }
-  .settings-row input[type="color"]{ width:44px; height:34px; padding:2px; }
+  .settings-row label{ width:220px; font-size:12px; color:var(--text-dim); flex-shrink:0; }
+  .settings-row input[type="color"]{ width:44px; height:34px; padding:2px; flex-shrink:0; }
 
-  .page-row{ padding:14px 0; border-bottom:1px solid var(--line); }
-  .page-row:last-child{ border-bottom:none; }
-  .page-row-title{ font-weight:600; font-size:14px; margin-bottom:8px; }
-  .page-actions{ display:flex; gap:8px; margin-top:8px; }
+  /* ---- notifications ---- */
+  .segment-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-bottom:14px; }
+  .segment-opt{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:12px; text-align:center; }
+  .segment-opt.active{ border-color:var(--cyan); color:var(--cyan); background:rgba(0,229,255,0.08); }
+
+  /* ---- profile drawer ---- */
+  .drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; z-index:90; }
+  .drawer-overlay.show{ display:block; }
+  .drawer{
+    position:fixed; top:0; right:0; height:100vh; width:100%; max-width:420px; background:var(--panel);
+    border-left:1px solid var(--line); z-index:91; transform:translateX(100%); transition:transform .25s;
+    overflow-y:auto; padding:22px;
+  }
+  .drawer.show{ transform:translateX(0); }
+  .drawer-close{ background:none; border:none; color:var(--text-dim); font-size:20px; float:right; }
+
+  /* ---- system status ---- */
+  .status-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; }
+  .status-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; text-align:center; }
+  .status-dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+  .status-dot.online{ background:var(--income); box-shadow:0 0 8px var(--income); }
+  .status-dot.error{ background:var(--expense); box-shadow:0 0 8px var(--expense); }
+  .status-dot.offline{ background:var(--text-dim); }
 
   .toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
@@ -92,6 +171,13 @@
     font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:100;
   }
   .toast.show{ opacity:1; }
+
+  .mobile-menu-btn{ display:none; background:none; border:none; color:var(--text); font-size:20px; }
+  @media (max-width:780px){
+    .sidebar{ position:fixed; left:0; top:0; bottom:0; z-index:80; transform:translateX(-100%); transition:transform .2s; }
+    .sidebar.open{ transform:translateX(0); }
+    .mobile-menu-btn{ display:block; }
+  }
 </style>
 </head>
 <body>
@@ -107,107 +193,275 @@
 </div>
 
 <div id="appShell">
-  <header>
-    <h1>Pul Nazorati — Admin</h1>
-    <span id="overviewSummary"></span>
-  </header>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="tab-overview">Umumiy</button>
-    <button class="tab-btn" data-tab="tab-categories">Kategoriyalar</button>
-    <button class="tab-btn" data-tab="tab-texts">Matnlar</button>
-    <button class="tab-btn" data-tab="tab-colors">Ranglar</button>
-    <button class="tab-btn" data-tab="tab-pages">Sahifalar</button>
-    <button class="tab-btn" data-tab="tab-transactions">Tranzaksiyalar</button>
-  </div>
-
-  <main>
-    <!-- OVERVIEW -->
-    <div class="tab-content active" id="tab-overview">
-      <div class="stat-cards">
-        <div class="stat-card"><div class="num" id="ovUsers">-</div><div class="label">Foydalanuvchilar</div></div>
-        <div class="stat-card"><div class="num" id="ovTx">-</div><div class="label">Tranzaksiyalar</div></div>
-        <div class="stat-card"><div class="num" id="ovGoals">-</div><div class="label">Maqsadlar</div></div>
-      </div>
-      <div class="card">
-        <h3>Foydalanuvchilar</h3>
-        <table id="usersTable"><thead><tr><th>ID</th><th>Ism</th><th>Telegram ID</th><th>Ro'yxatdan o'tgan</th></tr></thead><tbody></tbody></table>
-      </div>
-    </div>
-
-    <!-- CATEGORIES -->
-    <div class="tab-content" id="tab-categories">
-      <div class="card">
-        <h3>Yangi kategoriya qo'shish</h3>
-        <div class="form-row">
-          <select id="newCatType"><option value="income">Daromad</option><option value="expense">Xarajat</option></select>
-          <input type="text" id="newCatName" placeholder="Nomi (masalan: Kommunal)">
-          <input type="color" id="newCatColor" value="#00E5FF" style="max-width:60px;">
-          <select id="newCatIcon">
-            <option value="home">Uy</option>
-            <option value="briefcase">Portfel</option>
-            <option value="plusCircle">Plyus-doira</option>
-            <option value="basket">Savat</option>
-            <option value="car">Mashina</option>
-            <option value="dots">Uch nuqta</option>
-          </select>
-          <button class="btn btn-primary" id="addCatBtn">Qo'shish</button>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">💰</div>
+        <div>
+          <span class="name">Pul Nazorati</span>
+          <span class="sub">Admin Panel</span>
         </div>
       </div>
-      <div class="card">
-        <h3>Daromad kategoriyalari</h3>
-        <div id="incomeCatList"></div>
+      <nav class="sidebar-nav">
+        <button class="side-btn active" data-page="page-dashboard"><span class="emoji">🏠</span> Dashboard</button>
+        <button class="side-btn" data-page="page-users"><span class="emoji">👥</span> Foydalanuvchilar</button>
+        <button class="side-btn" data-page="page-transactions"><span class="emoji">💳</span> Tranzaksiyalar</button>
+        <button class="side-btn" data-page="page-goals"><span class="emoji">🎯</span> Maqsadlar</button>
+        <button class="side-btn" data-page="page-analytics"><span class="emoji">📊</span> Analitika</button>
+        <button class="side-btn" data-page="page-categories"><span class="emoji">🗂</span> Kategoriyalar</button>
+        <button class="side-btn" data-page="page-content"><span class="emoji">📄</span> Kontent</button>
+        <button class="side-btn" data-page="page-design"><span class="emoji">🎨</span> Dizayn</button>
+        <button class="side-btn" data-page="page-notifications"><span class="emoji">🔔</span> Xabarlar</button>
+        <button class="side-btn" data-page="page-settings"><span class="emoji">⚙️</span> Sozlamalar</button>
+        <button class="side-btn" data-page="page-system"><span class="emoji">🛠</span> System</button>
+        <button class="side-btn" data-page="page-security"><span class="emoji">🔐</span> Xavfsizlik</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn" id="logoutBtn">Chiqish</button>
       </div>
-      <div class="card">
-        <h3>Xarajat kategoriyalari</h3>
-        <div id="expenseCatList"></div>
-      </div>
-    </div>
+    </aside>
 
-    <!-- TEXTS -->
-    <div class="tab-content" id="tab-texts">
-      <div class="card">
-        <h3>Ilova matnlari</h3>
-        <div id="textSettingsList"></div>
+    <div class="main-col">
+      <div class="topbar">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <div class="sub" id="pageSub">Asosiy statistika</div>
+        </div>
+        <div class="period-pills" id="periodPills">
+          <button class="period-pill" data-period="today">Bugun</button>
+          <button class="period-pill active" data-period="7d">7 kun</button>
+          <button class="period-pill" data-period="30d">30 kun</button>
+          <button class="period-pill" data-period="3m">3 oy</button>
+          <button class="period-pill" data-period="1y">1 yil</button>
+        </div>
       </div>
-    </div>
 
-    <!-- COLORS -->
-    <div class="tab-content" id="tab-colors">
-      <div class="card">
-        <h3>Rang sxemasi</h3>
-        <div id="colorSettingsList"></div>
-      </div>
-    </div>
+      <main>
+        <!-- ============ DASHBOARD ============ -->
+        <div class="page active" id="page-dashboard">
+          <div class="stat-grid" id="dashStatGrid"></div>
+          <div class="chart-row">
+            <div class="card">
+              <h3>Foydalanuvchilar o'sishi</h3>
+              <div id="growthChart"></div>
+            </div>
+            <div class="card">
+              <h3>Daromad vs Xarajat</h3>
+              <div id="flowChart"></div>
+              <div class="legend-row">
+                <span><span class="legend-dot" style="background:var(--income)"></span>Daromad</span>
+                <span><span class="legend-dot" style="background:var(--expense)"></span>Xarajat</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="card">
+              <h3>Eng ko'p ishlatiladigan kategoriyalar</h3>
+              <div id="topCatChart"></div>
+            </div>
+            <div class="card">
+              <h3>So'nggi tranzaksiyalar</h3>
+              <table><thead><tr><th>Foydalanuvchi</th><th>Turi</th><th>Kategoriya</th><th>Summa</th></tr></thead><tbody id="dashRecentTx"></tbody></table>
+            </div>
+          </div>
+        </div>
 
-    <!-- PAGES -->
-    <div class="tab-content" id="tab-pages">
-      <div class="card">
-        <h3>Yangi sahifa qo'shish</h3>
-        <input type="text" id="newPageTitle" placeholder="Sarlavha" style="margin-bottom:10px;">
-        <textarea id="newPageBody" placeholder="Matn (masalan: yordam, qoidalar, biz haqimizda)" rows="4" style="margin-bottom:10px;"></textarea>
-        <button class="btn btn-primary" id="addPageBtn">Sahifa qo'shish</button>
-      </div>
-      <div class="card">
-        <h3>Mavjud sahifalar (ilovada "Ko'proq" bo'limida chiqadi)</h3>
-        <div id="pagesAdminList"></div>
-      </div>
-    </div>
+        <!-- ============ USERS ============ -->
+        <div class="page" id="page-users">
+          <div class="card">
+            <div class="table-toolbar">
+              <input type="text" id="userSearch" placeholder="Qidirish (ism yoki ID)...">
+              <select id="userStatusFilter">
+                <option value="">Barchasi</option>
+                <option value="active">Aktiv</option>
+                <option value="blocked">Bloklangan</option>
+              </select>
+            </div>
+            <table>
+              <thead><tr><th>Ism</th><th>Telegram ID</th><th>Tranzaksiya</th><th>Balans</th><th>Maqsad</th><th>Oxirgi faollik</th><th>Status</th><th></th></tr></thead>
+              <tbody id="usersTable"></tbody>
+            </table>
+          </div>
+        </div>
 
-    <!-- TRANSACTIONS -->
-    <div class="tab-content" id="tab-transactions">
-      <div class="card">
-        <h3>So'nggi tranzaksiyalar (200 tagacha)</h3>
-        <table id="txTable"><thead><tr><th>Foydalanuvchi</th><th>Turi</th><th>Kategoriya</th><th>Summa</th><th>Sana</th></tr></thead><tbody></tbody></table>
-      </div>
+        <!-- ============ TRANSACTIONS ============ -->
+        <div class="page" id="page-transactions">
+          <div class="card">
+            <div class="table-toolbar">
+              <input type="text" id="txSearch" placeholder="Qidirish...">
+              <select id="txTypeFilter">
+                <option value="">Barchasi</option>
+                <option value="income">Daromad</option>
+                <option value="expense">Xarajat</option>
+              </select>
+            </div>
+            <table>
+              <thead><tr><th>Foydalanuvchi</th><th>Turi</th><th>Kategoriya</th><th>Summa</th><th>Sana</th><th>Izoh</th></tr></thead>
+              <tbody id="txTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============ GOALS ============ -->
+        <div class="page" id="page-goals">
+          <div class="card">
+            <table>
+              <thead><tr><th>Foydalanuvchi</th><th>Maqsad</th><th>Yig'ilgan / Kerak</th><th>Foiz</th><th>Muddat</th><th>Status</th></tr></thead>
+              <tbody id="goalsTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============ ANALYTICS ============ -->
+        <div class="page" id="page-analytics">
+          <div class="stat-grid" id="analyticsStatGrid"></div>
+          <div class="chart-row">
+            <div class="card"><h3>Faollik (DAU / WAU / MAU)</h3><div id="dauChart"></div></div>
+            <div class="card"><h3>Eng ko'p daromad/xarajat kategoriyasi</h3><div id="analyticsTopCat"></div></div>
+          </div>
+        </div>
+
+        <!-- ============ CATEGORIES ============ -->
+        <div class="page" id="page-categories">
+          <div class="cat-editor-layout">
+            <div class="card">
+              <h3>Kategoriya dizayni</h3>
+              <div class="form-grid">
+                <div><label>Turi</label><select id="catType"><option value="income">Daromad</option><option value="expense">Xarajat</option></select></div>
+                <div><label>Nomi</label><input type="text" id="catName" placeholder="Masalan: Kommunal"></div>
+              </div>
+              <label style="font-size:11px; color:var(--text-dim); display:block; margin-bottom:5px;">Emoji</label>
+              <input type="text" id="catEmoji" placeholder="🍔 🚗 💰 🏠 ..." style="font-size:20px; margin-bottom:10px;">
+
+              <label style="font-size:11px; color:var(--text-dim); display:block; margin-bottom:5px;">Fon rangi</label>
+              <input type="color" id="catBg" value="#00E5FF" style="margin-bottom:10px; height:40px;">
+
+              <div class="slider-row" style="margin-bottom:8px;">
+                <label style="width:110px; font-size:11px; color:var(--text-dim);">Emoji hajmi</label>
+                <input type="range" id="catEmojiSize" min="16" max="56" value="28">
+                <span id="catEmojiSizeVal">28px</span>
+              </div>
+              <div class="slider-row" style="margin-bottom:14px;">
+                <label style="width:110px; font-size:11px; color:var(--text-dim);">Burchak radiusi</label>
+                <input type="range" id="catRadius" min="0" max="30" value="14">
+                <span id="catRadiusVal">14px</span>
+              </div>
+
+              <button class="btn btn-primary" id="saveCatBtn" style="width:100%;">Kategoriya qo'shish</button>
+            </div>
+
+            <div class="card">
+              <h3>Live Preview</h3>
+              <div class="emoji-preview-wrap">
+                <div class="emoji-preview-tile" id="emojiPreviewTile">
+                  <span id="emojiPreviewChar">🍔</span>
+                </div>
+                <div class="emoji-preview-label" id="emojiPreviewLabel">Nomi shu yerda</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <h3>Daromad kategoriyalari</h3>
+            <div id="incomeCatList"></div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>Xarajat kategoriyalari</h3>
+            <div id="expenseCatList"></div>
+          </div>
+        </div>
+
+        <!-- ============ CONTENT ============ -->
+        <div class="page" id="page-content">
+          <div class="card">
+            <h3>Ilova matnlari</h3>
+            <div id="textSettingsList"></div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>Yangi sahifa qo'shish</h3>
+            <input type="text" id="newPageTitle" placeholder="Sarlavha" style="margin-bottom:10px;">
+            <textarea id="newPageBody" placeholder="Matn (masalan: yordam, qoidalar, biz haqimizda)" rows="4" style="margin-bottom:10px;"></textarea>
+            <button class="btn btn-primary" id="addPageBtn">Sahifa qo'shish</button>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>Mavjud sahifalar (ilovada "Ko'proq" bo'limida chiqadi)</h3>
+            <div id="pagesAdminList"></div>
+          </div>
+        </div>
+
+        <!-- ============ DESIGN ============ -->
+        <div class="page" id="page-design">
+          <div class="card">
+            <h3>Rang sxemasi</h3>
+            <div id="colorSettingsList"></div>
+          </div>
+        </div>
+
+        <!-- ============ NOTIFICATIONS ============ -->
+        <div class="page" id="page-notifications">
+          <div class="card">
+            <h3>Xabar yuborish</h3>
+            <label style="font-size:11px; color:var(--text-dim); display:block; margin-bottom:6px;">Qabul qiluvchilar</label>
+            <div class="segment-grid">
+              <button class="segment-opt active" data-segment="all">Barcha userlar</button>
+              <button class="segment-opt" data-segment="active">Aktiv userlar</button>
+              <button class="segment-opt" data-segment="new">Yangi userlar</button>
+              <button class="segment-opt" data-segment="inactive">Uzoq kirmaganlar</button>
+            </div>
+            <textarea id="notifText" placeholder="Xabar matnini kiriting..." rows="4" style="margin-bottom:12px;"></textarea>
+            <button class="btn btn-primary" id="sendNotifBtn">Yuborish</button>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>Yuborilgan xabarlar tarixi</h3>
+            <table><thead><tr><th>Sana</th><th>Segment</th><th>Matn</th><th>Yetkazildi</th><th>Xato</th></tr></thead><tbody id="notifHistory"></tbody></table>
+          </div>
+        </div>
+
+        <!-- ============ SETTINGS ============ -->
+        <div class="page" id="page-settings">
+          <div class="card">
+            <h3>Umumiy sozlamalar</h3>
+            <div class="settings-row"><label>Ilova nomi</label><input type="text" data-key="app_name" class="general-setting-input"><button class="btn btn-sm" data-save-general="app_name">Saqlash</button></div>
+            <div class="settings-row"><label>Valyuta</label><input type="text" data-key="currency" class="general-setting-input"><button class="btn btn-sm" data-save-general="currency">Saqlash</button></div>
+          </div>
+        </div>
+
+        <!-- ============ SYSTEM ============ -->
+        <div class="page" id="page-system">
+          <div class="status-grid" id="systemStatusGrid"></div>
+        </div>
+
+        <!-- ============ SECURITY ============ -->
+        <div class="page" id="page-security">
+          <div class="card">
+            <h3>Xavfsizlik haqida</h3>
+            <p style="font-size:13px; color:var(--text-dim); line-height:1.7;">
+              Admin panel paroli (<code>ADMIN_PASSWORD</code>) faqat Railway'ning Environment Variables bo'limida saqlanadi
+              va hech qachon frontend kodiga yozilmaydi. Har bir admin so'rovi <code>X-Admin-Password</code> sarlavhasi
+              orqali serverga yuboriladi va serverda solishtiriladi.<br><br>
+              Oddiy foydalanuvchi API'lari (<code>/api/*</code>) Telegram WebApp'ning rasmiy <code>initData</code>
+              tekshiruvi (HMAC-SHA256) orqali himoyalangan — bu ikkala tizim bir-biridan butunlay ajratilgan bo'lib,
+              admin so'rovlari Telegram autentifikatsiyasini talab qilmaydi va aksincha.
+            </p>
+          </div>
+        </div>
+      </main>
     </div>
-  </main>
+  </div>
+</div>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="userDrawer">
+  <button class="drawer-close" id="drawerCloseBtn">&times;</button>
+  <div id="drawerContent"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
   let ADMIN_PASSWORD = sessionStorage.getItem('adminPassword') || '';
+  let currentPeriod = '7d';
 
   async function adminApi(path, options = {}) {
     const res = await fetch('/api/admin' + path, {
@@ -225,6 +479,7 @@
     return res.json();
   }
 
+  const fmt = (n) => Number(n || 0).toLocaleString('ru-RU').replace(/,/g, ' ');
   function showToast(msg) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -244,7 +499,7 @@
       sessionStorage.setItem('adminPassword', password);
       loginScreen.style.display = 'none';
       appShell.style.display = 'block';
-      loadAll();
+      initAllPages();
     } catch (e) {
       loginError.textContent = "Parol noto'g'ri yoki server xatosi";
       ADMIN_PASSWORD = '';
@@ -258,90 +513,426 @@
   document.getElementById('adminPasswordInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('adminPassword');
+    location.reload();
+  });
 
   if (ADMIN_PASSWORD) tryLogin(ADMIN_PASSWORD);
 
-  /* ---------- TABS ---------- */
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  /* ---------- SIDEBAR NAV ---------- */
+  const PAGE_META = {
+    'page-dashboard': { title: 'Dashboard', sub: 'Asosiy statistika', period: true },
+    'page-users': { title: 'Foydalanuvchilar', sub: 'Barcha ro\'yxatdan o\'tganlar', period: false },
+    'page-transactions': { title: 'Tranzaksiyalar', sub: 'Barcha userlar tranzaksiyasi', period: false },
+    'page-goals': { title: 'Maqsadlar', sub: 'Moliyaviy maqsadlar', period: false },
+    'page-analytics': { title: 'Analitika', sub: 'Chuqur statistik tahlil', period: true },
+    'page-categories': { title: 'Kategoriyalar', sub: 'Emoji dizayn tizimi', period: false },
+    'page-content': { title: 'Kontent', sub: 'Matnlar va sahifalar', period: false },
+    'page-design': { title: 'Dizayn', sub: 'Rang sxemasi', period: false },
+    'page-notifications': { title: 'Xabarlar', sub: 'Foydalanuvchilarga xabar yuborish', period: false },
+    'page-settings': { title: 'Sozlamalar', sub: 'Umumiy tizim sozlamalari', period: false },
+    'page-system': { title: 'System', sub: 'Texnik monitoring', period: false },
+    'page-security': { title: 'Xavfsizlik', sub: 'Autentifikatsiya haqida', period: false },
+  };
+
+  const sideBtns = document.querySelectorAll('.side-btn');
+  const pages = document.querySelectorAll('.page');
+  const periodPills = document.getElementById('periodPills');
+
+  const PAGE_LOADERS = {
+    'page-dashboard': loadDashboard,
+    'page-users': loadUsers,
+    'page-transactions': loadTransactions,
+    'page-goals': loadGoals,
+    'page-analytics': loadAnalytics,
+    'page-categories': loadCategories,
+    'page-content': () => { loadTextSettings(); loadPages(); },
+    'page-design': loadColorSettings,
+    'page-notifications': loadNotifHistory,
+    'page-settings': loadGeneralSettings,
+    'page-system': loadSystemStatus,
+    'page-security': () => {},
+  };
+
+  sideBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      sideBtns.forEach(b => b.classList.remove('active'));
+      pages.forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
+      const pageId = btn.dataset.page;
+      document.getElementById(pageId).classList.add('active');
+      const meta = PAGE_META[pageId];
+      document.getElementById('pageTitle').textContent = meta.title;
+      document.getElementById('pageSub').textContent = meta.sub;
+      periodPills.style.display = meta.period ? 'flex' : 'none';
+      document.getElementById('sidebar').classList.remove('open');
+      if (PAGE_LOADERS[pageId]) PAGE_LOADERS[pageId]();
     });
   });
 
-  const fmt = (n) => Number(n || 0).toLocaleString('ru-RU').replace(/,/g, ' ');
+  document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
 
-  /* ---------- OVERVIEW ---------- */
-  async function loadOverview() {
-    const ov = await adminApi('/overview');
-    document.getElementById('ovUsers').textContent = ov.users;
-    document.getElementById('ovTx').textContent = ov.transactions;
-    document.getElementById('ovGoals').textContent = ov.goals;
-    document.getElementById('overviewSummary').textContent = `${ov.users} foydalanuvchi · ${ov.transactions} tranzaksiya`;
+  document.querySelectorAll('.period-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.period-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentPeriod = pill.dataset.period;
+      const activePage = document.querySelector('.page.active').id;
+      if (PAGE_LOADERS[activePage]) PAGE_LOADERS[activePage]();
+    });
+  });
 
-    const { users } = await adminApi('/users');
-    document.querySelector('#usersTable tbody').innerHTML = users.map(u => `
-      <tr><td>${u.id}</td><td>${u.first_name || '-'}</td><td>${u.telegram_id}</td><td>${new Date(u.created_at).toLocaleDateString('uz-UZ')}</td></tr>
-    `).join('') || '<tr><td colspan="4" style="color:var(--text-dim)">Hozircha foydalanuvchi yo\'q</td></tr>';
+  /* ---------- SVG CHART HELPERS ---------- */
+  function renderLineChart(container, labels, values, color) {
+    if (!labels.length) { container.innerHTML = '<div class="chart-empty">Ma\'lumot yo\'q</div>'; return; }
+    const W = 460, H = 200, padL = 30, padR = 10, padT = 14, padB = 26;
+    const chartW = W - padL - padR, chartH = H - padT - padB;
+    const maxVal = Math.max(1, ...values);
+    const stepX = labels.length > 1 ? chartW / (labels.length - 1) : 0;
+    const points = values.map((v, i) => {
+      const x = padL + stepX * i;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      return [x, y];
+    });
+    const path = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = path + ` L${points[points.length - 1][0]},${padT + chartH} L${points[0][0]},${padT + chartH} Z`;
+
+    let dots = '';
+    points.forEach((p, i) => {
+      dots += `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"><title>${labels[i]}: ${values[i]}</title></circle>`;
+    });
+    let labelSvg = '';
+    labels.forEach((l, i) => {
+      if (labels.length > 10 && i % Math.ceil(labels.length / 6) !== 0) return;
+      labelSvg += `<text x="${points[i][0]}" y="${H - 6}" text-anchor="middle" font-size="9" fill="var(--text-dim)">${l.slice(5)}</text>`;
+    });
+
+    container.innerHTML = `<svg class="svg-chart" viewBox="0 0 ${W} ${H}">
+      <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <line x1="${padL}" y1="${padT + chartH}" x2="${W - padR}" y2="${padT + chartH}" stroke="rgba(255,255,255,0.08)"/>
+      <path d="${area}" fill="url(#areaGrad)"/>
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>
+      ${dots}${labelSvg}
+    </svg>`;
   }
 
-  /* ---------- CATEGORIES ---------- */
-  const ICON_LABELS = { home:'Uy', briefcase:'Portfel', plusCircle:'Plyus-doira', basket:'Savat', car:'Mashina', dots:'Uch nuqta' };
+  function renderBarChart2(container, labels, seriesA, seriesB, colorA, colorB) {
+    if (!labels.length) { container.innerHTML = '<div class="chart-empty">Ma\'lumot yo\'q</div>'; return; }
+    const W = 460, H = 200, padB = 24, padT = 14;
+    const chartH = H - padB - padT;
+    const maxVal = Math.max(1, ...seriesA, ...seriesB);
+    const groupW = W / labels.length;
+    const barW = Math.min(14, groupW / 3.2);
+    let bars = '';
+    labels.forEach((label, i) => {
+      const cx = groupW * i + groupW / 2;
+      const aH = (seriesA[i] / maxVal) * chartH, bH = (seriesB[i] / maxVal) * chartH;
+      bars += `<rect x="${cx - barW - 2}" y="${padT + chartH - aH}" width="${barW}" height="${Math.max(aH,1.5)}" rx="3" fill="${colorA}"><title>${fmt(seriesA[i])}</title></rect>`;
+      bars += `<rect x="${cx + 2}" y="${padT + chartH - bH}" width="${barW}" height="${Math.max(bH,1.5)}" rx="3" fill="${colorB}"><title>${fmt(seriesB[i])}</title></rect>`;
+      if (labels.length <= 10 || i % Math.ceil(labels.length / 8) === 0) {
+        bars += `<text x="${cx}" y="${H - 4}" text-anchor="middle" font-size="9" fill="var(--text-dim)">${label.slice(5)}</text>`;
+      }
+    });
+    container.innerHTML = `<svg class="svg-chart" viewBox="0 0 ${W} ${H}">
+      <line x1="0" y1="${padT + chartH}" x2="${W}" y2="${padT + chartH}" stroke="rgba(255,255,255,0.08)"/>
+      ${bars}
+    </svg>`;
+  }
+
+  function renderHBarList(container, rows, valueKey, labelKey, color) {
+    if (!rows.length) { container.innerHTML = '<div class="chart-empty">Ma\'lumot yo\'q</div>'; return; }
+    const max = Math.max(1, ...rows.map(r => r[valueKey]));
+    container.innerHTML = rows.map(r => `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+          <span>${r[labelKey]}</span><span style="color:var(--text-dim); font-family:'IBM Plex Mono',monospace;">${fmt(r[valueKey])}</span>
+        </div>
+        <div style="height:6px; background:var(--panel-2); border-radius:4px;">
+          <div style="height:100%; width:${(r[valueKey]/max*100).toFixed(1)}%; background:${color}; border-radius:4px;"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function statCard(icon, iconBg, num, label, delta) {
+    return `<div class="stat-card">
+      <div class="top-row"><div class="icon-box" style="background:${iconBg}">${icon}</div></div>
+      <div class="num">${num}</div>
+      <div class="label">${label}</div>
+      ${delta ? `<div class="delta up">${delta}</div>` : ''}
+    </div>`;
+  }
+
+  /* ---------- DASHBOARD ---------- */
+  async function loadDashboard() {
+    try {
+      const ov = await adminApi('/overview');
+      document.getElementById('dashStatGrid').innerHTML =
+        statCard('👥', 'rgba(59,130,246,0.15)', fmt(ov.users), 'Jami foydalanuvchilar') +
+        statCard('🆕', 'rgba(0,200,83,0.15)', fmt(ov.newUsersToday), 'Bugungi yangi userlar') +
+        statCard('⚡', 'rgba(255,176,32,0.15)', fmt(ov.activeUsers), 'Faol foydalanuvchilar (7 kun)') +
+        statCard('💰', 'rgba(0,200,83,0.15)', fmt(ov.income) + " so'm", 'Jami daromad') +
+        statCard('💸', 'rgba(255,82,82,0.15)', fmt(ov.expense) + " so'm", 'Jami xarajat') +
+        statCard('⚖️', 'rgba(124,77,255,0.15)', fmt(ov.balance) + " so'm", 'Umumiy balans') +
+        statCard('💳', 'rgba(0,229,255,0.15)', fmt(ov.transactions), 'Jami tranzaksiyalar') +
+        statCard('🎯', 'rgba(255,176,32,0.15)', fmt(ov.goals), 'Faol maqsadlar');
+
+      const an = await adminApi('/analytics?period=' + currentPeriod);
+      renderLineChart(document.getElementById('growthChart'), an.growth.map(g => g.date), an.growth.map(g => g.count), '#7C4DFF');
+      renderBarChart2(document.getElementById('flowChart'), an.flow.labels, an.flow.income, an.flow.expense, '#00C853', '#FF5252');
+      renderHBarList(document.getElementById('topCatChart'), an.topCategories, 'total', 'category', '#00E5FF');
+
+      const tx = await adminApi('/transactions');
+      document.getElementById('dashRecentTx').innerHTML = tx.transactions.slice(0, 6).map(t => `
+        <tr><td>${t.first_name || t.telegram_id}</td>
+        <td><span class="badge ${t.type}">${t.type === 'income' ? 'Daromad' : 'Xarajat'}</span></td>
+        <td>${t.category}</td><td>${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</td></tr>
+      `).join('') || '<tr class="empty-row"><td colspan="4">Ma\'lumot yo\'q</td></tr>';
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  /* ---------- ANALYTICS ---------- */
+  async function loadAnalytics() {
+    try {
+      const an = await adminApi('/analytics?period=' + currentPeriod);
+      document.getElementById('analyticsStatGrid').innerHTML =
+        statCard('📅', 'rgba(0,229,255,0.15)', fmt(an.dau), 'Kunlik faol (DAU)') +
+        statCard('📆', 'rgba(124,77,255,0.15)', fmt(an.wau), 'Haftalik faol (WAU)') +
+        statCard('🗓️', 'rgba(255,176,32,0.15)', fmt(an.mau), 'Oylik faol (MAU)');
+      renderLineChart(document.getElementById('dauChart'), an.growth.map(g => g.date), an.growth.map(g => g.count), '#00E5FF');
+      renderHBarList(document.getElementById('analyticsTopCat'), an.topCategories, 'total', 'category', '#7C4DFF');
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+
+  /* ---------- USERS ---------- */
+  let allUsersCache = [];
+  async function loadUsers() {
+    try {
+      const { users } = await adminApi('/users');
+      allUsersCache = users;
+      renderUsersTable();
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  function renderUsersTable() {
+    const search = (document.getElementById('userSearch').value || '').toLowerCase();
+    const statusFilter = document.getElementById('userStatusFilter').value;
+    let rows = allUsersCache.filter(u => {
+      const matchesSearch = !search || (u.first_name || '').toLowerCase().includes(search) || String(u.telegram_id).includes(search);
+      const matchesStatus = !statusFilter || (statusFilter === 'blocked' ? u.is_blocked : !u.is_blocked);
+      return matchesSearch && matchesStatus;
+    });
+    document.getElementById('usersTable').innerHTML = rows.map(u => `
+      <tr class="clickable" data-id="${u.id}">
+        <td>${u.first_name || '-'}</td>
+        <td>${u.telegram_id}</td>
+        <td>${u.tx_count}</td>
+        <td>${fmt(u.balance)}</td>
+        <td>${u.goals_count}</td>
+        <td>${u.last_active_at ? new Date(u.last_active_at).toLocaleDateString('uz-UZ') : '-'}</td>
+        <td><span class="badge ${u.is_blocked ? 'blocked' : 'ok'}">${u.is_blocked ? 'Bloklangan' : 'Aktiv'}</span></td>
+        <td><button class="btn btn-sm ${u.is_blocked ? '' : 'btn-danger'}" data-toggle-block="${u.id}" data-blocked="${u.is_blocked}">${u.is_blocked ? 'Aktivlashtirish' : 'Bloklash'}</button></td>
+      </tr>
+    `).join('') || '<tr class="empty-row"><td colspan="8">Foydalanuvchi topilmadi</td></tr>';
+
+    document.querySelectorAll('#usersTable tr[data-id]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        openUserDrawer(row.dataset.id);
+      });
+    });
+    document.querySelectorAll('[data-toggle-block]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.toggleBlock;
+        const isBlocked = btn.dataset.blocked === 'true';
+        try {
+          await adminApi(`/users/${id}/${isBlocked ? 'unblock' : 'block'}`, { method: 'PUT' });
+          showToast(isBlocked ? 'Aktivlashtirildi' : 'Bloklandi');
+          loadUsers();
+        } catch (e2) { showToast(e2.message); }
+      });
+    });
+  }
+  document.getElementById('userSearch').addEventListener('input', renderUsersTable);
+  document.getElementById('userStatusFilter').addEventListener('change', renderUsersTable);
+
+  async function openUserDrawer(id) {
+    try {
+      const data = await adminApi(`/users/${id}`);
+      const u = data.user;
+      document.getElementById('drawerContent').innerHTML = `
+        <h3 style="margin-bottom:4px;">${u.first_name || 'Foydalanuvchi'}</h3>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:18px;">Telegram ID: ${u.telegram_id}</div>
+        <div style="display:flex; gap:8px; margin-bottom:18px;">
+          <button class="btn btn-sm ${u.is_blocked ? '' : 'btn-danger'}" id="drawerToggleBlock">${u.is_blocked ? 'Aktivlashtirish' : 'Bloklash'}</button>
+        </div>
+        <h3 style="font-size:13px; margin-bottom:8px;">Tranzaksiyalar (${data.transactions.length})</h3>
+        <div style="max-height:220px; overflow-y:auto; margin-bottom:18px;">
+          ${data.transactions.map(t => `<div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:12px;">
+            <span>${t.category}</span><span style="color:${t.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</span>
+          </div>`).join('') || '<div style="color:var(--text-dim); font-size:12px;">Yo\'q</div>'}
+        </div>
+        <h3 style="font-size:13px; margin-bottom:8px;">Maqsadlar (${data.goals.length})</h3>
+        <div>
+          ${data.goals.map(g => `<div style="padding:7px 0; border-bottom:1px solid var(--line); font-size:12px;">
+            ${g.name}: ${fmt(g.current)} / ${fmt(g.target)}
+          </div>`).join('') || '<div style="color:var(--text-dim); font-size:12px;">Yo\'q</div>'}
+        </div>
+      `;
+      document.getElementById('drawerToggleBlock').addEventListener('click', async () => {
+        try {
+          await adminApi(`/users/${id}/${u.is_blocked ? 'unblock' : 'block'}`, { method: 'PUT' });
+          showToast('Bajarildi');
+          closeDrawer();
+          loadUsers();
+        } catch (e2) { showToast(e2.message); }
+      });
+      document.getElementById('drawerOverlay').classList.add('show');
+      document.getElementById('userDrawer').classList.add('show');
+    } catch (e) { showToast(e.message); }
+  }
+  function closeDrawer() {
+    document.getElementById('drawerOverlay').classList.remove('show');
+    document.getElementById('userDrawer').classList.remove('show');
+  }
+  document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
+  document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+
+  /* ---------- TRANSACTIONS ---------- */
+  let allTxCache = [];
+  async function loadTransactions() {
+    try {
+      const { transactions } = await adminApi('/transactions');
+      allTxCache = transactions;
+      renderTxTable();
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+  function renderTxTable() {
+    const search = (document.getElementById('txSearch').value || '').toLowerCase();
+    const typeFilter = document.getElementById('txTypeFilter').value;
+    let rows = allTxCache.filter(t => {
+      const matchesSearch = !search || t.category.toLowerCase().includes(search) || (t.first_name || '').toLowerCase().includes(search);
+      const matchesType = !typeFilter || t.type === typeFilter;
+      return matchesSearch && matchesType;
+    });
+    document.getElementById('txTable').innerHTML = rows.map(t => `
+      <tr>
+        <td>${t.first_name || t.telegram_id}</td>
+        <td><span class="badge ${t.type}">${t.type === 'income' ? 'Daromad' : 'Xarajat'}</span></td>
+        <td>${t.category}</td>
+        <td>${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</td>
+        <td>${t.date}</td>
+        <td style="color:var(--text-dim);">${t.comment || '-'}</td>
+      </tr>
+    `).join('') || '<tr class="empty-row"><td colspan="6">Tranzaksiya topilmadi</td></tr>';
+  }
+  document.getElementById('txSearch').addEventListener('input', renderTxTable);
+  document.getElementById('txTypeFilter').addEventListener('change', renderTxTable);
+
+  /* ---------- GOALS ---------- */
+  async function loadGoals() {
+    try {
+      const { goals } = await adminApi('/goals');
+      document.getElementById('goalsTable').innerHTML = goals.map(g => {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `<tr>
+          <td>${g.first_name || g.telegram_id}</td>
+          <td>${g.name}</td>
+          <td>${fmt(g.current)} / ${fmt(g.target)}</td>
+          <td>${pct}%</td>
+          <td>${g.deadline || '-'}</td>
+          <td><span class="badge ${g.status === 'active' ? 'ok' : 'blocked'}">${g.status === 'active' ? 'Faol' : g.status}</span></td>
+        </tr>`;
+      }).join('') || '<tr class="empty-row"><td colspan="6">Maqsad yo\'q</td></tr>';
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  /* ---------- CATEGORIES (emoji live preview) ---------- */
+  const catEmoji = document.getElementById('catEmoji');
+  const catBg = document.getElementById('catBg');
+  const catEmojiSize = document.getElementById('catEmojiSize');
+  const catRadius = document.getElementById('catRadius');
+  const catName = document.getElementById('catName');
+  const previewTile = document.getElementById('emojiPreviewTile');
+  const previewChar = document.getElementById('emojiPreviewChar');
+  const previewLabel = document.getElementById('emojiPreviewLabel');
+
+  function updateEmojiPreview() {
+    const size = Number(catEmojiSize.value);
+    const radius = Number(catRadius.value);
+    previewTile.style.width = (size + 34) + 'px';
+    previewTile.style.height = (size + 34) + 'px';
+    previewTile.style.background = catBg.value;
+    previewTile.style.borderRadius = radius + 'px';
+    previewChar.style.fontSize = size + 'px';
+    previewChar.textContent = catEmoji.value || '🍔';
+    previewLabel.textContent = catName.value || 'Nomi shu yerda';
+    document.getElementById('catEmojiSizeVal').textContent = size + 'px';
+    document.getElementById('catRadiusVal').textContent = radius + 'px';
+  }
+  [catEmoji, catBg, catEmojiSize, catRadius, catName].forEach(el => el.addEventListener('input', updateEmojiPreview));
+  updateEmojiPreview();
 
   function renderCatList(categories) {
     const incomeList = document.getElementById('incomeCatList');
     const expenseList = document.getElementById('expenseCatList');
     incomeList.innerHTML = '';
     expenseList.innerHTML = '';
-
     categories.forEach(c => {
       const row = document.createElement('div');
       row.className = 'cat-row-admin';
       row.innerHTML = `
-        <div class="cat-swatch" style="background:${c.color}"></div>
+        <div class="cat-swatch" style="background:${c.color}; border-radius:${c.emoji_radius ?? 14}px;">${c.emoji || '🔘'}</div>
         <div class="name">${c.name}</div>
-        <span class="type-badge ${c.type}">${c.type === 'income' ? 'Daromad' : 'Xarajat'}</span>
-        <button class="btn btn-danger" data-id="${c.id}" style="padding:6px 12px;">O'chirish</button>
+        <div class="actions">
+          <button class="btn btn-sm btn-danger" data-del-cat="${c.id}">O'chirish</button>
+        </div>
       `;
-      row.querySelector('button').addEventListener('click', async () => {
+      row.querySelector('[data-del-cat]').addEventListener('click', async () => {
         if (!confirm(`"${c.name}" kategoriyasini o'chirmoqchimisiz?`)) return;
-        try {
-          await adminApi(`/categories/${c.id}`, { method: 'DELETE' });
-          showToast("Kategoriya o'chirildi");
-          loadCategoriesAdmin();
-        } catch (e) { alert(e.message); }
+        try { await adminApi(`/categories/${c.id}`, { method: 'DELETE' }); showToast("O'chirildi"); loadCategories(); }
+        catch (e) { showToast(e.message); }
       });
       (c.type === 'income' ? incomeList : expenseList).appendChild(row);
     });
-
     if (!categories.filter(c => c.type === 'income').length) incomeList.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Kategoriya yo\'q</p>';
     if (!categories.filter(c => c.type === 'expense').length) expenseList.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Kategoriya yo\'q</p>';
   }
 
-  async function loadCategoriesAdmin() {
+  async function loadCategories() {
     try {
       const { categories } = await adminApi('/categories');
       renderCatList(categories);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); showToast(e.message); }
   }
 
-  document.getElementById('addCatBtn').addEventListener('click', async () => {
-    const type = document.getElementById('newCatType').value;
-    const name = document.getElementById('newCatName').value.trim();
-    const color = document.getElementById('newCatColor').value;
-    const icon_key = document.getElementById('newCatIcon').value;
-    if (!name) return alert('Kategoriya nomini kiriting');
+  document.getElementById('saveCatBtn').addEventListener('click', async () => {
+    const type = document.getElementById('catType').value;
+    const name = catName.value.trim();
+    if (!name) return showToast('Kategoriya nomini kiriting');
     try {
-      await adminApi('/categories', { method: 'POST', body: JSON.stringify({ type, name, color, icon_key, sort_order: 99 }) });
-      document.getElementById('newCatName').value = '';
+      await adminApi('/categories', {
+        method: 'POST',
+        body: JSON.stringify({
+          type, name, color: catBg.value, emoji: catEmoji.value || '🔘',
+          emoji_size: Number(catEmojiSize.value), emoji_radius: Number(catRadius.value), sort_order: 99
+        })
+      });
+      catName.value = ''; catEmoji.value = '';
+      updateEmojiPreview();
       showToast("Kategoriya qo'shildi");
-      loadCategoriesAdmin();
-    } catch (e) { alert(e.message); }
+      loadCategories();
+    } catch (e) { showToast(e.message); }
   });
 
-  /* ---------- TEXT SETTINGS ---------- */
+  /* ---------- CONTENT: TEXTS ---------- */
   const TEXT_KEYS = [
     ['hero_eyebrow', 'Balans yozuvi'], ['add_panel_title', "Pul kiritish sarlavhasi"],
     ['tx_list_title', "Tranzaksiyalar ro'yxati sarlavhasi"], ['submit_btn_label', "Qo'shish tugmasi matni"],
@@ -356,115 +947,172 @@
     ['color_bg', 'Fon rangi'], ['color_panel', 'Panel rangi'], ['color_income', 'Daromad rangi'],
     ['color_expense', 'Xarajat rangi'], ['color_cyan', 'Cyan (asosiy)'], ['color_violet', 'Binafsha'], ['color_amber', 'Amber']
   ];
-
   let settingsCache = {};
 
-  async function loadSettingsAdmin() {
+  async function fetchSettingsMap() {
     const { settings } = await adminApi('/settings');
     settingsCache = {};
     settings.forEach(s => { settingsCache[s.key] = s.value; });
-
-    const textList = document.getElementById('textSettingsList');
-    textList.innerHTML = TEXT_KEYS.map(([key, label]) => `
-      <div class="settings-row">
-        <label>${label}</label>
-        <input type="text" data-key="${key}" value="${(settingsCache[key] || '').replace(/"/g,'&quot;')}">
-        <button class="btn" data-save="${key}" style="flex:0 0 auto;">Saqlash</button>
-      </div>
-    `).join('');
-
-    const colorList = document.getElementById('colorSettingsList');
-    colorList.innerHTML = COLOR_KEYS.map(([key, label]) => `
-      <div class="settings-row">
-        <label>${label}</label>
-        <input type="color" data-key="${key}" value="${settingsCache[key] || '#000000'}">
-        <input type="text" data-key-text="${key}" value="${settingsCache[key] || ''}" style="max-width:110px; font-family:'IBM Plex Mono',monospace;">
-        <button class="btn" data-save="${key}" style="flex:0 0 auto;">Saqlash</button>
-      </div>
-    `).join('');
-
-    document.querySelectorAll('#textSettingsList [data-save]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const key = btn.dataset.save;
-        const value = document.querySelector(`#textSettingsList [data-key="${key}"]`).value;
-        try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
-        catch (e) { alert(e.message); }
-      });
-    });
-
-    document.querySelectorAll('#colorSettingsList input[type="color"]').forEach(colorInput => {
-      colorInput.addEventListener('input', () => {
-        const key = colorInput.dataset.key;
-        document.querySelector(`#colorSettingsList [data-key-text="${key}"]`).value = colorInput.value;
-      });
-    });
-
-    document.querySelectorAll('#colorSettingsList [data-save]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const key = btn.dataset.save;
-        const value = document.querySelector(`#colorSettingsList [data-key-text="${key}"]`).value;
-        try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
-        catch (e) { alert(e.message); }
-      });
-    });
+    return settingsCache;
   }
 
-  /* ---------- PAGES ---------- */
-  async function loadPagesAdmin() {
-    const { pages } = await adminApi('/pages').catch(() => ({ pages: [] }));
-    const list = document.getElementById('pagesAdminList');
-    if (!pages.length) { list.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Hozircha sahifa yo\'q</p>'; return; }
-    list.innerHTML = pages.map(p => `
-      <div class="page-row">
-        <div class="page-row-title">${p.title}</div>
-        <div style="font-size:12px; color:var(--text-dim); white-space:pre-wrap;">${p.body}</div>
-        <div class="page-actions">
-          <button class="btn btn-danger" data-id="${p.id}">O'chirish</button>
+  async function loadTextSettings() {
+    try {
+      await fetchSettingsMap();
+      document.getElementById('textSettingsList').innerHTML = TEXT_KEYS.map(([key, label]) => `
+        <div class="settings-row">
+          <label>${label}</label>
+          <input type="text" data-key="${key}" value="${(settingsCache[key] || '').replace(/"/g,'&quot;')}">
+          <button class="btn btn-sm" data-save="${key}">Saqlash</button>
         </div>
-      </div>
-    `).join('');
-    list.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm("Bu sahifani o'chirmoqchimisiz?")) return;
-        try { await adminApi(`/pages/${btn.dataset.id}`, { method: 'DELETE' }); showToast("O'chirildi"); loadPagesAdmin(); }
-        catch (e) { alert(e.message); }
+      `).join('');
+      document.querySelectorAll('#textSettingsList [data-save]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.save;
+          const value = document.querySelector(`#textSettingsList [data-key="${key}"]`).value;
+          try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
+          catch (e) { showToast(e.message); }
+        });
       });
-    });
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  async function loadColorSettings() {
+    try {
+      await fetchSettingsMap();
+      document.getElementById('colorSettingsList').innerHTML = COLOR_KEYS.map(([key, label]) => `
+        <div class="settings-row">
+          <label>${label}</label>
+          <input type="color" data-key="${key}" value="${settingsCache[key] || '#000000'}">
+          <input type="text" data-key-text="${key}" value="${settingsCache[key] || ''}" style="max-width:110px; font-family:'IBM Plex Mono',monospace;">
+          <button class="btn btn-sm" data-save="${key}">Saqlash</button>
+        </div>
+      `).join('');
+      document.querySelectorAll('#colorSettingsList input[type="color"]').forEach(ci => {
+        ci.addEventListener('input', () => {
+          document.querySelector(`#colorSettingsList [data-key-text="${ci.dataset.key}"]`).value = ci.value;
+        });
+      });
+      document.querySelectorAll('#colorSettingsList [data-save]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.save;
+          const value = document.querySelector(`#colorSettingsList [data-key-text="${key}"]`).value;
+          try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
+          catch (e) { showToast(e.message); }
+        });
+      });
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  async function loadGeneralSettings() {
+    try {
+      await fetchSettingsMap();
+      document.querySelectorAll('.general-setting-input').forEach(input => {
+        input.value = settingsCache[input.dataset.key] || '';
+      });
+      document.querySelectorAll('[data-save-general]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.saveGeneral;
+          const value = document.querySelector(`.general-setting-input[data-key="${key}"]`).value;
+          try { await adminApi(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }); showToast('Saqlandi'); }
+          catch (e) { showToast(e.message); }
+        });
+      });
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  /* ---------- CONTENT: PAGES ---------- */
+  async function loadPages() {
+    try {
+      const { pages } = await adminApi('/pages');
+      const list = document.getElementById('pagesAdminList');
+      if (!pages.length) { list.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">Hozircha sahifa yo\'q</p>'; return; }
+      list.innerHTML = pages.map(p => `
+        <div style="padding:14px 0; border-bottom:1px solid var(--line);">
+          <div style="font-weight:600; font-size:14px; margin-bottom:8px;">${p.title}</div>
+          <div style="font-size:12px; color:var(--text-dim); white-space:pre-wrap; margin-bottom:8px;">${p.body}</div>
+          <button class="btn btn-sm btn-danger" data-del-page="${p.id}">O'chirish</button>
+        </div>
+      `).join('');
+      list.querySelectorAll('[data-del-page]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Bu sahifani o'chirmoqchimisiz?")) return;
+          try { await adminApi(`/pages/${btn.dataset.delPage}`, { method: 'DELETE' }); showToast("O'chirildi"); loadPages(); }
+          catch (e) { showToast(e.message); }
+        });
+      });
+    } catch (e) { console.error(e); showToast(e.message); }
   }
 
   document.getElementById('addPageBtn').addEventListener('click', async () => {
     const title = document.getElementById('newPageTitle').value.trim();
     const body = document.getElementById('newPageBody').value.trim();
-    if (!title || !body) return alert("Sarlavha va matnni to'ldiring");
+    if (!title || !body) return showToast("Sarlavha va matnni to'ldiring");
     try {
       await adminApi('/pages', { method: 'POST', body: JSON.stringify({ title, body, sort_order: 99 }) });
       document.getElementById('newPageTitle').value = '';
       document.getElementById('newPageBody').value = '';
       showToast("Sahifa qo'shildi");
-      loadPagesAdmin();
-    } catch (e) { alert(e.message); }
+      loadPages();
+    } catch (e) { showToast(e.message); }
   });
 
-  /* ---------- TRANSACTIONS ---------- */
-  async function loadTransactionsAdmin() {
-    const { transactions } = await adminApi('/transactions');
-    document.querySelector('#txTable tbody').innerHTML = transactions.map(t => `
-      <tr>
-        <td>${t.first_name || t.telegram_id}</td>
-        <td style="color:${t.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${t.type === 'income' ? 'Daromad' : 'Xarajat'}</td>
-        <td>${t.category}</td>
-        <td>${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</td>
-        <td>${t.date}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="5" style="color:var(--text-dim)">Tranzaksiya yo\'q</td></tr>';
+  /* ---------- NOTIFICATIONS ---------- */
+  let selectedSegment = 'all';
+  document.querySelectorAll('.segment-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.segment-opt').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      selectedSegment = opt.dataset.segment;
+    });
+  });
+
+  document.getElementById('sendNotifBtn').addEventListener('click', async () => {
+    const text = document.getElementById('notifText').value.trim();
+    if (!text) return showToast('Xabar matnini kiriting');
+    if (!confirm("Xabarni yuborishga ishonchingiz komilmi?")) return;
+    try {
+      const result = await adminApi('/notifications/send', { method: 'POST', body: JSON.stringify({ segment: selectedSegment, text }) });
+      showToast(`Yuborildi: ${result.sent}, xato: ${result.failed}`);
+      document.getElementById('notifText').value = '';
+      loadNotifHistory();
+    } catch (e) { showToast(e.message); }
+  });
+
+  async function loadNotifHistory() {
+    try {
+      const { history } = await adminApi('/notifications/history');
+      document.getElementById('notifHistory').innerHTML = history.map(h => `
+        <tr>
+          <td>${new Date(h.created_at).toLocaleString('uz-UZ')}</td>
+          <td>${h.segment}</td>
+          <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${h.message}</td>
+          <td style="color:var(--income)">${h.sent_count}</td>
+          <td style="color:var(--expense)">${h.failed_count}</td>
+        </tr>
+      `).join('') || '<tr class="empty-row"><td colspan="5">Hali xabar yuborilmagan</td></tr>';
+    } catch (e) { console.error(e); showToast(e.message); }
   }
 
-  async function loadAll() {
-    loadOverview().catch(console.error);
-    loadCategoriesAdmin().catch(console.error);
-    loadSettingsAdmin().catch(console.error);
-    loadPagesAdmin().catch(console.error);
-    loadTransactionsAdmin().catch(console.error);
+  /* ---------- SYSTEM ---------- */
+  async function loadSystemStatus() {
+    try {
+      const s = await adminApi('/system/status');
+      const hrs = Math.floor(s.uptimeSeconds / 3600), mins = Math.floor((s.uptimeSeconds % 3600) / 60);
+      function card(title, status) {
+        return `<div class="status-card">
+          <div style="font-size:13px; font-weight:600; margin-bottom:8px;">${title}</div>
+          <div><span class="status-dot ${status}"></span>${status === 'online' ? 'Online' : status === 'error' ? 'Xato' : 'Offline'}</div>
+        </div>`;
+      }
+      document.getElementById('systemStatusGrid').innerHTML =
+        card('Ma\'lumotlar bazasi', s.db) + card('Telegram bot', s.bot) + card('API server', s.api) +
+        `<div class="status-card"><div style="font-size:13px; font-weight:600; margin-bottom:8px;">Uptime</div><div style="font-family:'IBM Plex Mono',monospace;">${hrs}s ${mins}m</div></div>`;
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  function initAllPages() {
+    loadDashboard();
   }
 </script>
 </body>
