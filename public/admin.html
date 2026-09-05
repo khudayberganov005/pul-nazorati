@@ -146,6 +146,32 @@
   .segment-opt{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:12px; text-align:center; }
   .segment-opt.active{ border-color:var(--cyan); color:var(--cyan); background:rgba(0,229,255,0.08); }
 
+  /* ---- user cards ---- */
+  .user-card-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+  @media (max-width:1000px){ .user-card-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:640px){ .user-card-grid{ grid-template-columns:1fr; } }
+  .user-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px; cursor:pointer; transition:border-color .15s; }
+  .user-card:hover{ border-color:rgba(255,255,255,0.2); }
+  .user-card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .user-card-name{ font-weight:600; font-size:14px; }
+  .user-card-username{ font-size:11px; color:var(--text-dim); }
+  .user-card-stats{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text-dim); margin:10px 0; }
+  .user-card-stats b{ color:var(--text); font-family:'IBM Plex Mono',monospace; }
+  .premium-badge{ font-size:10px; padding:3px 8px; border-radius:6px; background:rgba(255,176,32,0.15); color:var(--amber); font-weight:700; }
+  .free-badge{ font-size:10px; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--text-dim); font-weight:600; }
+
+  .pagination{ display:flex; justify-content:center; align-items:center; gap:6px; margin-top:20px; }
+  .page-num{ background:var(--panel); border:1px solid var(--line); color:var(--text-dim); width:32px; height:32px; border-radius:8px; font-size:12px; }
+  .page-num.active{ background:var(--gradient); color:#0B0E16; border-color:transparent; font-weight:700; }
+
+  /* ---- premium modal ---- */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:95; padding:20px; }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{ background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; width:100%; max-width:360px; }
+  .duration-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:14px 0; }
+  .duration-opt{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px; font-size:13px; text-align:center; }
+  .duration-opt.active{ border-color:var(--amber); color:var(--amber); }
+
   /* ---- profile drawer ---- */
   .drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; z-index:90; }
   .drawer-overlay.show{ display:block; }
@@ -185,8 +211,9 @@
 <div id="loginScreen">
   <div class="login-box">
     <h1>Pul Nazorati</h1>
-    <p>Admin panelga kirish uchun parolni kiriting</p>
-    <input type="password" id="adminPasswordInput" placeholder="Admin parol">
+    <p>Admin panelga kirish uchun login va parolni kiriting</p>
+    <input type="text" id="adminUsernameInput" placeholder="Login" style="margin-bottom:12px;" autocomplete="username">
+    <input type="password" id="adminPasswordInput" placeholder="Parol" autocomplete="current-password">
     <button class="btn btn-primary" style="width:100%;" id="loginBtn">Kirish</button>
     <div class="login-error" id="loginError"></div>
   </div>
@@ -215,6 +242,8 @@
         <button class="side-btn" data-page="page-settings"><span class="emoji">⚙️</span> Sozlamalar</button>
         <button class="side-btn" data-page="page-system"><span class="emoji">🛠</span> System</button>
         <button class="side-btn" data-page="page-security"><span class="emoji">🔐</span> Xavfsizlik</button>
+        <button class="side-btn" id="navAdminMgmt" data-page="page-admins" style="display:none;"><span class="emoji">🛡️</span> Admin boshqaruvi</button>
+        <button class="side-btn" id="navLogs" data-page="page-logs" style="display:none;"><span class="emoji">📋</span> Loglar</button>
       </nav>
       <div class="sidebar-footer">
         <button class="btn" id="logoutBtn">Chiqish</button>
@@ -269,20 +298,18 @@
 
         <!-- ============ USERS ============ -->
         <div class="page" id="page-users">
-          <div class="card">
-            <div class="table-toolbar">
-              <input type="text" id="userSearch" placeholder="Qidirish (ism yoki ID)...">
-              <select id="userStatusFilter">
-                <option value="">Barchasi</option>
-                <option value="active">Aktiv</option>
-                <option value="blocked">Bloklangan</option>
-              </select>
+          <div class="table-toolbar" style="margin-bottom:16px;">
+            <input type="text" id="userSearch" placeholder="Ism, username yoki Telegram ID...">
+            <div class="segment-grid" id="userFilterPills" style="flex:1;">
+              <button class="segment-opt active" data-filter="">Barchasi</button>
+              <button class="segment-opt" data-filter="premium">⭐ Premium</button>
+              <button class="segment-opt" data-filter="free">🆓 Free</button>
+              <button class="segment-opt" data-filter="active">🟢 Aktiv</button>
+              <button class="segment-opt" data-filter="inactive">⚪ Inaktiv</button>
             </div>
-            <table>
-              <thead><tr><th>Ism</th><th>Telegram ID</th><th>Tranzaksiya</th><th>Balans</th><th>Maqsad</th><th>Oxirgi faollik</th><th>Status</th><th></th></tr></thead>
-              <tbody id="usersTable"></tbody>
-            </table>
           </div>
+          <div class="user-card-grid" id="userCardGrid"></div>
+          <div class="pagination" id="userPagination"></div>
         </div>
 
         <!-- ============ TRANSACTIONS ============ -->
@@ -437,13 +464,50 @@
           <div class="card">
             <h3>Xavfsizlik haqida</h3>
             <p style="font-size:13px; color:var(--text-dim); line-height:1.7;">
-              Admin panel paroli (<code>ADMIN_PASSWORD</code>) faqat Railway'ning Environment Variables bo'limida saqlanadi
-              va hech qachon frontend kodiga yozilmaydi. Har bir admin so'rovi <code>X-Admin-Password</code> sarlavhasi
-              orqali serverga yuboriladi va serverda solishtiriladi.<br><br>
+              Har bir admin o'zining shaxsiy login va paroli bilan kiradi. Parollar bazada oddiy matn sifatida emas,
+              balki qaytarib bo'lmaydigan (scrypt) hash ko'rinishida saqlanadi. Kirishdan so'ng 7 kunlik muddatli,
+              imzolangan sessiya tokeni beriladi va u <code>Authorization: Bearer</code> sarlavhasi orqali yuboriladi —
+              token soxtalashtirilsa yoki muddati o'tsa, server avtomatik rad etadi.<br><br>
+              Oddiy admin faqat Owner bergan ruxsatlar doirasida ishlay oladi (masalan faqat foydalanuvchilarni ko'rish,
+              lekin Premium bera olmaslik). Faqat <b>Owner</b> yangi admin qo'sha oladi, ruxsatlarni o'zgartira oladi
+              va boshqa adminni o'chira oladi.<br><br>
               Oddiy foydalanuvchi API'lari (<code>/api/*</code>) Telegram WebApp'ning rasmiy <code>initData</code>
-              tekshiruvi (HMAC-SHA256) orqali himoyalangan — bu ikkala tizim bir-biridan butunlay ajratilgan bo'lib,
-              admin so'rovlari Telegram autentifikatsiyasini talab qilmaydi va aksincha.
+              tekshiruvi (HMAC-SHA256) orqali himoyalangan — bu ikkala tizim bir-biridan butunlay ajratilgan.
             </p>
+          </div>
+        </div>
+
+        <!-- ============ ADMIN MANAGEMENT (faqat Owner) ============ -->
+        <div class="page" id="page-admins">
+          <div class="card">
+            <h3>Yangi admin qo'shish</h3>
+            <div class="form-grid">
+              <div><label>Login</label><input type="text" id="newAdminUsername" placeholder="masalan: sardor"></div>
+              <div><label>Parol</label><input type="password" id="newAdminPassword" placeholder="Kamida 6 belgi"></div>
+            </div>
+            <label style="font-size:11px; color:var(--text-dim); display:block; margin:10px 0 6px;">Ruxsatlar</label>
+            <div class="segment-grid" id="newAdminPermsGrid">
+              <label class="perm-check"><input type="checkbox" value="users"> Foydalanuvchilar</label>
+              <label class="perm-check"><input type="checkbox" value="premium"> Premium</label>
+              <label class="perm-check"><input type="checkbox" value="statistics"> Statistika</label>
+              <label class="perm-check"><input type="checkbox" value="notifications"> Xabarlar</label>
+              <label class="perm-check"><input type="checkbox" value="adminLogs"> Admin loglari</label>
+            </div>
+            <button class="btn btn-primary" id="addAdminBtn" style="margin-top:14px;">Admin qo'shish</button>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <h3>Mavjud adminlar</h3>
+            <div id="adminsList"></div>
+          </div>
+        </div>
+
+        <!-- ============ LOGS ============ -->
+        <div class="page" id="page-logs">
+          <div class="card">
+            <table>
+              <thead><tr><th>Admin</th><th>Foydalanuvchi ID</th><th>Amal</th><th>Sana</th></tr></thead>
+              <tbody id="logsTable"></tbody>
+            </table>
           </div>
         </div>
       </main>
@@ -451,16 +515,41 @@
   </div>
 </div>
 
+<style>
+  .perm-check{ display:flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; font-size:12px; cursor:pointer; }
+  .perm-check input{ width:auto; }
+</style>
+
 <div class="drawer-overlay" id="drawerOverlay"></div>
 <div class="drawer" id="userDrawer">
   <button class="drawer-close" id="drawerCloseBtn">&times;</button>
   <div id="drawerContent"></div>
 </div>
 
+<div class="modal-overlay" id="premiumModalOverlay">
+  <div class="modal-box">
+    <h3 style="margin-bottom:14px;">⭐ Premium berish</h3>
+    <div class="duration-grid">
+      <button class="duration-opt active" data-duration="7d">7 kun</button>
+      <button class="duration-opt" data-duration="30d">30 kun</button>
+      <button class="duration-opt" data-duration="90d">90 kun</button>
+      <button class="duration-opt" data-duration="1y">1 yil</button>
+      <button class="duration-opt" data-duration="lifetime">Umrbod</button>
+      <button class="duration-opt" data-duration="custom">Boshqa (kun)</button>
+    </div>
+    <input type="text" id="customDaysInput" placeholder="Necha kun?" style="display:none; margin-bottom:12px;" inputmode="numeric">
+    <div style="display:flex; gap:8px;">
+      <button class="btn" style="flex:1;" id="premiumModalCancel">Bekor qilish</button>
+      <button class="btn btn-primary" style="flex:1;" id="premiumModalConfirm">Tasdiqlash</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-  let ADMIN_PASSWORD = sessionStorage.getItem('adminPassword') || '';
+  let ADMIN_TOKEN = sessionStorage.getItem('adminToken') || '';
+  let CURRENT_ADMIN = JSON.parse(sessionStorage.getItem('adminInfo') || 'null');
   let currentPeriod = '7d';
 
   async function adminApi(path, options = {}) {
@@ -468,10 +557,16 @@
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-Password': ADMIN_PASSWORD,
+        'Authorization': 'Bearer ' + ADMIN_TOKEN,
         ...(options.headers || {})
       }
     });
+    if (res.status === 401) {
+      sessionStorage.removeItem('adminToken');
+      sessionStorage.removeItem('adminInfo');
+      location.reload();
+      throw new Error('Sessiya tugadi');
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'So\'rovda xatolik');
@@ -486,39 +581,66 @@
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2200);
   }
+  function hasPerm(key) {
+    if (!CURRENT_ADMIN) return false;
+    if (CURRENT_ADMIN.role === 'owner') return true;
+    return !!(CURRENT_ADMIN.permissions && CURRENT_ADMIN.permissions[key]);
+  }
 
   /* ---------- LOGIN ---------- */
   const loginScreen = document.getElementById('loginScreen');
   const appShell = document.getElementById('appShell');
   const loginError = document.getElementById('loginError');
 
-  async function tryLogin(password) {
-    ADMIN_PASSWORD = password;
+  async function tryLogin(username, password) {
     try {
-      await adminApi('/overview');
-      sessionStorage.setItem('adminPassword', password);
+      const res = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xatolik');
+
+      ADMIN_TOKEN = data.token;
+      CURRENT_ADMIN = data.admin;
+      sessionStorage.setItem('adminToken', ADMIN_TOKEN);
+      sessionStorage.setItem('adminInfo', JSON.stringify(CURRENT_ADMIN));
+
       loginScreen.style.display = 'none';
       appShell.style.display = 'block';
+      applyRoleVisibility();
       initAllPages();
     } catch (e) {
-      loginError.textContent = "Parol noto'g'ri yoki server xatosi";
-      ADMIN_PASSWORD = '';
+      loginError.textContent = e.message || "Login yoki parol noto'g'ri";
     }
   }
 
+  function applyRoleVisibility() {
+    document.getElementById('navAdminMgmt').style.display = (CURRENT_ADMIN && CURRENT_ADMIN.role === 'owner') ? 'flex' : 'none';
+    document.getElementById('navLogs').style.display = hasPerm('adminLogs') ? 'flex' : 'none';
+  }
+
   document.getElementById('loginBtn').addEventListener('click', () => {
-    const pw = document.getElementById('adminPasswordInput').value;
-    if (pw) tryLogin(pw);
+    const u = document.getElementById('adminUsernameInput').value.trim();
+    const p = document.getElementById('adminPasswordInput').value;
+    if (u && p) tryLogin(u, p);
   });
   document.getElementById('adminPasswordInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('adminPassword');
+    sessionStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminInfo');
     location.reload();
   });
 
-  if (ADMIN_PASSWORD) tryLogin(ADMIN_PASSWORD);
+  if (ADMIN_TOKEN && CURRENT_ADMIN) {
+    loginScreen.style.display = 'none';
+    appShell.style.display = 'block';
+    applyRoleVisibility();
+    initAllPages();
+  }
 
   /* ---------- SIDEBAR NAV ---------- */
   const PAGE_META = {
@@ -534,6 +656,8 @@
     'page-settings': { title: 'Sozlamalar', sub: 'Umumiy tizim sozlamalari', period: false },
     'page-system': { title: 'System', sub: 'Texnik monitoring', period: false },
     'page-security': { title: 'Xavfsizlik', sub: 'Autentifikatsiya haqida', period: false },
+    'page-admins': { title: 'Admin boshqaruvi', sub: 'Adminlar va ruxsatlar (faqat Owner)', period: false },
+    'page-logs': { title: 'Loglar', sub: "Barcha admin harakatlari", period: false },
   };
 
   const sideBtns = document.querySelectorAll('.side-btn');
@@ -553,6 +677,8 @@
     'page-settings': loadGeneralSettings,
     'page-system': loadSystemStatus,
     'page-security': () => {},
+    'page-admins': loadAdmins,
+    'page-logs': loadLogs,
   };
 
   sideBtns.forEach(btn => {
@@ -711,88 +837,185 @@
 
 
   /* ---------- USERS ---------- */
-  let allUsersCache = [];
+  let currentUserPage = 1;
+  let currentUserFilter = '';
+  let userSearchDebounce = null;
+
   async function loadUsers() {
     try {
-      const { users } = await adminApi('/users');
-      allUsersCache = users;
-      renderUsersTable();
+      const search = document.getElementById('userSearch').value.trim();
+      const data = await adminApi(`/users?search=${encodeURIComponent(search)}&filter=${currentUserFilter}&page=${currentUserPage}`);
+      renderUserCards(data.users);
+      renderPagination(data.page, data.totalPages);
     } catch (e) { console.error(e); showToast(e.message); }
   }
 
-  function renderUsersTable() {
-    const search = (document.getElementById('userSearch').value || '').toLowerCase();
-    const statusFilter = document.getElementById('userStatusFilter').value;
-    let rows = allUsersCache.filter(u => {
-      const matchesSearch = !search || (u.first_name || '').toLowerCase().includes(search) || String(u.telegram_id).includes(search);
-      const matchesStatus = !statusFilter || (statusFilter === 'blocked' ? u.is_blocked : !u.is_blocked);
-      return matchesSearch && matchesStatus;
-    });
-    document.getElementById('usersTable').innerHTML = rows.map(u => `
-      <tr class="clickable" data-id="${u.id}">
-        <td>${u.first_name || '-'}</td>
-        <td>${u.telegram_id}</td>
-        <td>${u.tx_count}</td>
-        <td>${fmt(u.balance)}</td>
-        <td>${u.goals_count}</td>
-        <td>${u.last_active_at ? new Date(u.last_active_at).toLocaleDateString('uz-UZ') : '-'}</td>
-        <td><span class="badge ${u.is_blocked ? 'blocked' : 'ok'}">${u.is_blocked ? 'Bloklangan' : 'Aktiv'}</span></td>
-        <td><button class="btn btn-sm ${u.is_blocked ? '' : 'btn-danger'}" data-toggle-block="${u.id}" data-blocked="${u.is_blocked}">${u.is_blocked ? 'Aktivlashtirish' : 'Bloklash'}</button></td>
-      </tr>
-    `).join('') || '<tr class="empty-row"><td colspan="8">Foydalanuvchi topilmadi</td></tr>';
+  function renderUserCards(users) {
+    const grid = document.getElementById('userCardGrid');
+    if (!users.length) {
+      grid.innerHTML = '<div class="chart-empty" style="grid-column:1/-1;">Foydalanuvchi topilmadi</div>';
+      return;
+    }
+    grid.innerHTML = users.map(u => {
+      const balance = u.total_income - u.total_expense;
+      const activityDot = u.last_active_at && (Date.now() - new Date(u.last_active_at).getTime()) < 15 * 60 * 1000
+        ? '🟢' : u.last_active_at && (Date.now() - new Date(u.last_active_at).getTime()) < 24*60*60*1000 ? '🟡' : '⚪';
+      return `
+      <div class="user-card" data-id="${u.id}">
+        <div class="user-card-top">
+          <div>
+            <div class="user-card-name">${activityDot} ${u.first_name || 'Foydalanuvchi'}</div>
+            <div class="user-card-username">${u.username ? '@' + u.username : 'ID: ' + u.telegram_id}</div>
+          </div>
+          ${u.is_premium ? `<span class="premium-badge">⭐ ${u.premium_plan || 'Premium'}</span>` : '<span class="free-badge">Free</span>'}
+        </div>
+        <div class="user-card-stats">
+          <div>Balans: <b>${fmt(balance)}</b></div>
+          <div>Daromad: <b style="color:var(--income)">${fmt(u.total_income)}</b></div>
+          <div>Xarajat: <b style="color:var(--expense)">${fmt(u.total_expense)}</b></div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          ${hasPerm('premium') ? `<button class="btn btn-sm btn-primary" data-give-premium="${u.id}" style="flex:1;">⭐ Premium berish</button>` : ''}
+        </div>
+        ${u.is_blocked ? '<div style="margin-top:8px;"><span class="badge blocked">Bloklangan</span></div>' : ''}
+      </div>
+    `;
+    }).join('');
 
-    document.querySelectorAll('#usersTable tr[data-id]').forEach(row => {
-      row.addEventListener('click', (e) => {
+    grid.querySelectorAll('.user-card').forEach(card => {
+      card.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
-        openUserDrawer(row.dataset.id);
+        openUserDrawer(card.dataset.id);
       });
     });
-    document.querySelectorAll('[data-toggle-block]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    grid.querySelectorAll('[data-give-premium]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = btn.dataset.toggleBlock;
-        const isBlocked = btn.dataset.blocked === 'true';
-        try {
-          await adminApi(`/users/${id}/${isBlocked ? 'unblock' : 'block'}`, { method: 'PUT' });
-          showToast(isBlocked ? 'Aktivlashtirildi' : 'Bloklandi');
-          loadUsers();
-        } catch (e2) { showToast(e2.message); }
+        openPremiumModal(btn.dataset.givePremium);
       });
     });
   }
-  document.getElementById('userSearch').addEventListener('input', renderUsersTable);
-  document.getElementById('userStatusFilter').addEventListener('change', renderUsersTable);
+
+  function renderPagination(page, totalPages) {
+    const el = document.getElementById('userPagination');
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    let html = `<button class="page-num" id="pagePrev" ${page <= 1 ? 'disabled' : ''}>&larr;</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+      html += `<button class="page-num ${i === page ? 'active' : ''}" data-page-num="${i}">${i}</button>`;
+    }
+    html += `<button class="page-num" id="pageNext" ${page >= totalPages ? 'disabled' : ''}>&rarr;</button>`;
+    el.innerHTML = html;
+    el.querySelectorAll('[data-page-num]').forEach(b => b.addEventListener('click', () => { currentUserPage = Number(b.dataset.pageNum); loadUsers(); }));
+    const prev = document.getElementById('pagePrev'), next = document.getElementById('pageNext');
+    if (prev) prev.addEventListener('click', () => { currentUserPage--; loadUsers(); });
+    if (next) next.addEventListener('click', () => { currentUserPage++; loadUsers(); });
+  }
+
+  document.getElementById('userSearch').addEventListener('input', () => {
+    clearTimeout(userSearchDebounce);
+    userSearchDebounce = setTimeout(() => { currentUserPage = 1; loadUsers(); }, 350);
+  });
+  document.querySelectorAll('#userFilterPills .segment-opt').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#userFilterPills .segment-opt').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentUserFilter = pill.dataset.filter;
+      currentUserPage = 1;
+      loadUsers();
+    });
+  });
+
+  /* ---------- PREMIUM MODAL ---------- */
+  let premiumTargetUserId = null;
+  let selectedDuration = '7d';
+  const premiumModalOverlay = document.getElementById('premiumModalOverlay');
+  const customDaysInput = document.getElementById('customDaysInput');
+
+  function openPremiumModal(userId) {
+    premiumTargetUserId = userId;
+    selectedDuration = '7d';
+    document.querySelectorAll('.duration-opt').forEach(o => o.classList.remove('active'));
+    document.querySelector('.duration-opt[data-duration="7d"]').classList.add('active');
+    customDaysInput.style.display = 'none';
+    customDaysInput.value = '';
+    premiumModalOverlay.classList.add('show');
+  }
+  document.querySelectorAll('.duration-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.duration-opt').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      selectedDuration = opt.dataset.duration;
+      customDaysInput.style.display = selectedDuration === 'custom' ? 'block' : 'none';
+    });
+  });
+  document.getElementById('premiumModalCancel').addEventListener('click', () => premiumModalOverlay.classList.remove('show'));
+  document.getElementById('premiumModalConfirm').addEventListener('click', async () => {
+    const durationLabel = { '7d':'7 kun','30d':'30 kun','90d':'90 kun','1y':'1 yil','lifetime':'Umrbod','custom': (customDaysInput.value||'?') + ' kun' }[selectedDuration];
+    if (!confirm(`Bu foydalanuvchiga ${durationLabel} Premium berilsinmi?`)) return;
+    try {
+      await adminApi(`/users/${premiumTargetUserId}/premium`, {
+        method: 'POST',
+        body: JSON.stringify({ duration: selectedDuration, customDays: customDaysInput.value })
+      });
+      showToast('Premium berildi');
+      premiumModalOverlay.classList.remove('show');
+      loadUsers();
+    } catch (e) { showToast(e.message); }
+  });
 
   async function openUserDrawer(id) {
     try {
       const data = await adminApi(`/users/${id}`);
       const u = data.user;
+      const income = data.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+      const expense = data.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
       document.getElementById('drawerContent').innerHTML = `
-        <h3 style="margin-bottom:4px;">${u.first_name || 'Foydalanuvchi'}</h3>
-        <div style="font-size:12px; color:var(--text-dim); margin-bottom:18px;">Telegram ID: ${u.telegram_id}</div>
-        <div style="display:flex; gap:8px; margin-bottom:18px;">
-          <button class="btn btn-sm ${u.is_blocked ? '' : 'btn-danger'}" id="drawerToggleBlock">${u.is_blocked ? 'Aktivlashtirish' : 'Bloklash'}</button>
+        <h3 style="margin-bottom:4px;">👤 ${u.first_name || 'Foydalanuvchi'}</h3>
+        <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">${u.username ? '@'+u.username : ''} &middot; Telegram ID: ${u.telegram_id}</div>
+        <div style="margin-bottom:16px;">${u.is_premium ? `<span class="premium-badge">⭐ ${u.premium_plan}${u.premium_until ? ' &middot; ' + new Date(u.premium_until).toLocaleDateString('uz-UZ') : ''}</span>` : '<span class="free-badge">Free</span>'}</div>
+
+        <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+          ${hasPerm('premium') ? `<button class="btn btn-sm btn-primary" id="drawerGivePremium">⭐ Premium berish</button>` : ''}
+          ${hasPerm('premium') && u.is_premium ? `<button class="btn btn-sm btn-danger" id="drawerRemovePremium">Premiumni olib tashlash</button>` : ''}
+          ${hasPerm('users') ? `<button class="btn btn-sm ${u.is_blocked ? '' : 'btn-danger'}" id="drawerToggleBlock">${u.is_blocked ? 'Aktivlashtirish' : 'Bloklash'}</button>` : ''}
         </div>
-        <h3 style="font-size:13px; margin-bottom:8px;">Tranzaksiyalar (${data.transactions.length})</h3>
-        <div style="max-height:220px; overflow-y:auto; margin-bottom:18px;">
+
+        <h3 style="font-size:13px; margin-bottom:8px;">💰 Balans</h3>
+        <div class="user-card-stats" style="margin-bottom:18px;">
+          <div>Umumiy balans: <b>${fmt(income - expense)}</b></div>
+          <div>Daromad: <b style="color:var(--income)">${fmt(income)}</b></div>
+          <div>Xarajat: <b style="color:var(--expense)">${fmt(expense)}</b></div>
+        </div>
+
+        <h3 style="font-size:13px; margin-bottom:8px;">📥 Tranzaksiyalar (${data.transactions.length})</h3>
+        <div style="max-height:200px; overflow-y:auto; margin-bottom:18px;">
           ${data.transactions.map(t => `<div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:12px;">
             <span>${t.category}</span><span style="color:${t.type === 'income' ? 'var(--income)' : 'var(--expense)'}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</span>
           </div>`).join('') || '<div style="color:var(--text-dim); font-size:12px;">Yo\'q</div>'}
         </div>
-        <h3 style="font-size:13px; margin-bottom:8px;">Maqsadlar (${data.goals.length})</h3>
-        <div>
+        <h3 style="font-size:13px; margin-bottom:8px;">🎯 Maqsadlar (${data.goals.length})</h3>
+        <div style="margin-bottom:18px;">
           ${data.goals.map(g => `<div style="padding:7px 0; border-bottom:1px solid var(--line); font-size:12px;">
             ${g.name}: ${fmt(g.current)} / ${fmt(g.target)}
           </div>`).join('') || '<div style="color:var(--text-dim); font-size:12px;">Yo\'q</div>'}
         </div>
+        <h3 style="font-size:13px; margin-bottom:8px;">💳 Qarz/Kredit</h3>
+        <div style="color:var(--text-dim); font-size:12px;">Bu modul hali qo'shilmagan (keyingi bosqich)</div>
       `;
-      document.getElementById('drawerToggleBlock').addEventListener('click', async () => {
+      const blockBtn = document.getElementById('drawerToggleBlock');
+      if (blockBtn) blockBtn.addEventListener('click', async () => {
         try {
           await adminApi(`/users/${id}/${u.is_blocked ? 'unblock' : 'block'}`, { method: 'PUT' });
-          showToast('Bajarildi');
-          closeDrawer();
-          loadUsers();
+          showToast('Bajarildi'); closeDrawer(); loadUsers();
         } catch (e2) { showToast(e2.message); }
+      });
+      const givePremBtn = document.getElementById('drawerGivePremium');
+      if (givePremBtn) givePremBtn.addEventListener('click', () => { closeDrawer(); openPremiumModal(id); });
+      const removePremBtn = document.getElementById('drawerRemovePremium');
+      if (removePremBtn) removePremBtn.addEventListener('click', async () => {
+        if (!confirm("Premiumni olib tashlashga ishonchingiz komilmi?")) return;
+        try { await adminApi(`/users/${id}/premium`, { method: 'DELETE' }); showToast('Olib tashlandi'); closeDrawer(); loadUsers(); }
+        catch (e2) { showToast(e2.message); }
       });
       document.getElementById('drawerOverlay').classList.add('show');
       document.getElementById('userDrawer').classList.add('show');
@@ -804,6 +1027,61 @@
   }
   document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
   document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+
+  /* ---------- ADMIN MANAGEMENT (faqat Owner) ---------- */
+  async function loadAdmins() {
+    if (!CURRENT_ADMIN || CURRENT_ADMIN.role !== 'owner') return;
+    try {
+      const { admins } = await adminApi('/admins');
+      document.getElementById('adminsList').innerHTML = admins.map(a => `
+        <div class="cat-row-admin">
+          <div class="name">${a.username} ${a.role === 'owner' ? '👑 (Owner)' : ''}</div>
+          <div style="font-size:11px; color:var(--text-dim); flex:1;">
+            ${a.role === 'owner' ? 'Barcha ruxsatlar' : Object.entries(a.permissions||{}).filter(([k,v])=>v).map(([k])=>k).join(', ') || 'Ruxsat yo\'q'}
+          </div>
+          ${a.role !== 'owner' ? `<button class="btn btn-sm btn-danger" data-remove-admin="${a.id}">O'chirish</button>` : ''}
+        </div>
+      `).join('');
+      document.querySelectorAll('[data-remove-admin]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Bu adminni o'chirmoqchimisiz?")) return;
+          try { await adminApi(`/admins/${btn.dataset.removeAdmin}`, { method: 'DELETE' }); showToast("O'chirildi"); loadAdmins(); }
+          catch (e) { showToast(e.message); }
+        });
+      });
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
+
+  document.getElementById('addAdminBtn').addEventListener('click', async () => {
+    const username = document.getElementById('newAdminUsername').value.trim();
+    const password = document.getElementById('newAdminPassword').value;
+    if (!username || password.length < 6) return showToast("Login va kamida 6 belgili parol kiriting");
+    const permissions = {};
+    document.querySelectorAll('#newAdminPermsGrid input[type=checkbox]').forEach(cb => { permissions[cb.value] = cb.checked; });
+    try {
+      await adminApi('/admins', { method: 'POST', body: JSON.stringify({ username, password, permissions }) });
+      document.getElementById('newAdminUsername').value = '';
+      document.getElementById('newAdminPassword').value = '';
+      document.querySelectorAll('#newAdminPermsGrid input[type=checkbox]').forEach(cb => cb.checked = false);
+      showToast('Admin qo\'shildi');
+      loadAdmins();
+    } catch (e) { showToast(e.message); }
+  });
+
+  /* ---------- LOGS ---------- */
+  async function loadLogs() {
+    try {
+      const { logs } = await adminApi('/logs');
+      document.getElementById('logsTable').innerHTML = logs.map(l => `
+        <tr>
+          <td>${l.admin_username}</td>
+          <td>${l.target_user_id || '-'}</td>
+          <td>${l.action}</td>
+          <td>${new Date(l.created_at).toLocaleString('uz-UZ')}</td>
+        </tr>
+      `).join('') || '<tr class="empty-row"><td colspan="4">Hali log yo\'q</td></tr>';
+    } catch (e) { console.error(e); showToast(e.message); }
+  }
 
   /* ---------- TRANSACTIONS ---------- */
   let allTxCache = [];
