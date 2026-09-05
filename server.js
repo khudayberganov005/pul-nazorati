@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool, initDb } = require('./db');
-const { requireTelegramAuth, requireAdminAuth } = require('./telegramAuth');
+const { requireTelegramAuth, requireAdminAuth, requirePermission } = require('./telegramAuth');
 
 const app = express();
 app.use(cors());
@@ -15,11 +15,100 @@ let botInstance = null; // /admin/notifications/send uchun, initDb() tugagach to
 const api = express.Router();
 api.use(requireTelegramAuth);
 
+/* ---------- ADMIN: KIRISH (login) — bu ochiq, token talab qilmaydi ---------- */
+const { hashPassword, verifyPassword, signToken } = require('./adminAuth');
+
+app.post('/api/admin/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Login va parolni kiriting" });
+
+    const result = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
+    const admin = result.rows[0];
+    if (!admin || !verifyPassword(password, admin.password_hash)) {
+      return res.status(401).json({ error: "Login yoki parol noto'g'ri" });
+    }
+
+    const token = signToken(admin.id);
+    res.json({
+      token,
+      admin: { id: admin.id, username: admin.username, role: admin.role, permissions: admin.permissions }
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
 /* MUHIM: admin router /api routerdan OLDIN ulanadi, aks holda '/api' prefiksi
    '/api/admin/*' so'rovlarini ham "yutib" oladi va noto'g'ri (Telegram) auth talab qiladi */
 const admin = express.Router();
 admin.use(requireAdminAuth);
 app.use('/api/admin', admin);
+
+admin.get('/auth/me', (req, res) => {
+  res.json({ admin: req.admin });
+});
+
+/* ---------- ADMIN BOSHQARUVI (faqat Owner) ---------- */
+admin.get('/admins', async (req, res) => {
+  if (req.admin.role !== 'owner') return res.status(403).json({ error: "Faqat Owner ko'ra oladi" });
+  try {
+    const result = await pool.query('SELECT id, username, role, permissions, created_at FROM admins ORDER BY created_at ASC');
+    res.json({ admins: result.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.post('/admins', async (req, res) => {
+  if (req.admin.role !== 'owner') return res.status(403).json({ error: "Faqat Owner qo'sha oladi" });
+  try {
+    const { username, password, permissions } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Login va parol kerak" });
+    const result = await pool.query(
+      `INSERT INTO admins (username, password_hash, role, permissions) VALUES ($1,$2,'admin',$3) RETURNING id, username, role, permissions`,
+      [username, hashPassword(password), JSON.stringify(permissions || {})]
+    );
+    await pool.query('INSERT INTO admin_logs (admin_username, action) VALUES ($1,$2)',
+      [req.admin.username, `Yangi admin qo'shdi: ${username}`]);
+    res.json({ admin: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Bu login band' });
+    console.error(err); res.status(500).json({ error: 'Server xatosi' });
+  }
+});
+
+admin.put('/admins/:id/permissions', async (req, res) => {
+  if (req.admin.role !== 'owner') return res.status(403).json({ error: "Faqat Owner o'zgartira oladi" });
+  try {
+    const { permissions } = req.body;
+    const result = await pool.query(
+      'UPDATE admins SET permissions = $1 WHERE id = $2 AND role != \'owner\' RETURNING id, username, role, permissions',
+      [JSON.stringify(permissions || {}), req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "Topilmadi (yoki bu Owner)" });
+    await pool.query('INSERT INTO admin_logs (admin_username, action) VALUES ($1,$2)',
+      [req.admin.username, `${result.rows[0].username} ruxsatlarini o'zgartirdi`]);
+    res.json({ admin: result.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.delete('/admins/:id', async (req, res) => {
+  if (req.admin.role !== 'owner') return res.status(403).json({ error: "Faqat Owner o'chira oladi" });
+  try {
+    const target = await pool.query('SELECT username, role FROM admins WHERE id = $1', [req.params.id]);
+    if (!target.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    if (target.rows[0].role === 'owner') return res.status(400).json({ error: "Owner'ni o'chirib bo'lmaydi" });
+    await pool.query('DELETE FROM admins WHERE id = $1', [req.params.id]);
+    await pool.query('INSERT INTO admin_logs (admin_username, action) VALUES ($1,$2)',
+      [req.admin.username, `Adminni o'chirdi: ${target.rows[0].username}`]);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* ---------- ADMIN LOGLARI ---------- */
+admin.get('/logs', requirePermission('adminLogs'), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT 200');
+    res.json({ logs: result.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
 
 /* ---------- KATEGORIYALAR (dinamik, admin boshqaradi) ---------- */
 api.get('/categories', async (req, res) => {
@@ -293,7 +382,7 @@ function adminPeriodStartDate(period) {
   return d.toISOString().split('T')[0];
 }
 
-admin.get('/overview', async (req, res) => {
+admin.get('/overview', requirePermission('statistics'), async (req, res) => {
   try {
     const users = await pool.query('SELECT COUNT(*)::int as c FROM users');
     const todayUsers = await pool.query("SELECT COUNT(*)::int as c FROM users WHERE created_at::date = CURRENT_DATE");
@@ -316,7 +405,7 @@ admin.get('/overview', async (req, res) => {
 });
 
 /* ---------- ANALITIKA ---------- */
-admin.get('/analytics', async (req, res) => {
+admin.get('/analytics', requirePermission('statistics'), async (req, res) => {
   try {
     const period = req.query.period || '7d';
     const start = adminPeriodStartDate(period);
@@ -360,20 +449,46 @@ admin.get('/analytics', async (req, res) => {
 });
 
 /* ---------- FOYDALANUVCHILAR ---------- */
-admin.get('/users', async (req, res) => {
+admin.get('/users', requirePermission('users'), async (req, res) => {
   try {
-    const q = await pool.query(`
+    const search = (req.query.search || '').trim();
+    const filter = req.query.filter || '';
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const perPage = 15;
+    const offset = (page - 1) * perPage;
+
+    const conditions = [];
+    const params = [];
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      conditions.push(`(LOWER(u.first_name) LIKE $${params.length} OR LOWER(u.username) LIKE $${params.length} OR u.telegram_id LIKE $${params.length})`);
+    }
+    if (filter === 'premium') conditions.push(`u.is_premium = true`);
+    else if (filter === 'free') conditions.push(`u.is_premium = false`);
+    else if (filter === 'active') conditions.push(`u.last_active_at >= NOW() - INTERVAL '7 days'`);
+    else if (filter === 'inactive') conditions.push(`u.last_active_at < NOW() - INTERVAL '7 days'`);
+
+    const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const countQ = await pool.query(`SELECT COUNT(*)::int as c FROM users u ${whereClause}`, params);
+    const total = countQ.rows[0].c;
+
+    const dataQ = await pool.query(`
       SELECT u.*,
         COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.user_id = u.id), 0)::int as tx_count,
-        COALESCE((SELECT SUM(CASE WHEN type='income' THEN amount ELSE -amount END) FROM transactions t WHERE t.user_id = u.id), 0)::int as balance,
+        COALESCE((SELECT SUM(CASE WHEN type='income' THEN amount ELSE 0 END) FROM transactions t WHERE t.user_id = u.id), 0)::int as total_income,
+        COALESCE((SELECT SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) FROM transactions t WHERE t.user_id = u.id), 0)::int as total_expense,
         COALESCE((SELECT COUNT(*) FROM goals g WHERE g.user_id = u.id), 0)::int as goals_count
-      FROM users u ORDER BY u.created_at DESC
-    `);
-    res.json({ users: q.rows });
+      FROM users u ${whereClause}
+      ORDER BY COALESCE(NULLIF(u.username,''), u.first_name, '') ASC
+      LIMIT ${perPage} OFFSET ${offset}
+    `, params);
+
+    res.json({ users: dataQ.rows, total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
 
-admin.get('/users/:id', async (req, res) => {
+admin.get('/users/:id', requirePermission('users'), async (req, res) => {
   try {
     const user = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (!user.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
@@ -383,16 +498,78 @@ admin.get('/users/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
 
-admin.put('/users/:id/block', async (req, res) => {
+admin.put('/users/:id/block', requirePermission('users'), async (req, res) => {
   try {
-    await pool.query('UPDATE users SET is_blocked = true WHERE id = $1', [req.params.id]);
+    const u = await pool.query('UPDATE users SET is_blocked = true WHERE id = $1 RETURNING username, first_name', [req.params.id]);
+    await pool.query('INSERT INTO admin_logs (admin_username, target_user_id, action) VALUES ($1,$2,$3)',
+      [req.admin.username, req.params.id, `Foydalanuvchini bloklashdi: ${u.rows[0]?.username || u.rows[0]?.first_name || req.params.id}`]);
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
 
-admin.put('/users/:id/unblock', async (req, res) => {
+admin.put('/users/:id/unblock', requirePermission('users'), async (req, res) => {
   try {
-    await pool.query('UPDATE users SET is_blocked = false WHERE id = $1', [req.params.id]);
+    const u = await pool.query('UPDATE users SET is_blocked = false WHERE id = $1 RETURNING username, first_name', [req.params.id]);
+    await pool.query('INSERT INTO admin_logs (admin_username, target_user_id, action) VALUES ($1,$2,$3)',
+      [req.admin.username, req.params.id, `Foydalanuvchini aktivlashtirdi: ${u.rows[0]?.username || u.rows[0]?.first_name || req.params.id}`]);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* ---------- PREMIUM BERISH / OLIB TASHLASH ---------- */
+const PREMIUM_DURATIONS = {
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+  '90d': 90 * 24 * 60 * 60 * 1000,
+  '1y': 365 * 24 * 60 * 60 * 1000,
+};
+
+admin.post('/users/:id/premium', requirePermission('premium'), async (req, res) => {
+  try {
+    const { duration, customDays } = req.body; // duration: '7d'|'30d'|'90d'|'1y'|'lifetime'|'custom'
+    let until = null;
+    let planLabel = '';
+
+    if (duration === 'lifetime') {
+      until = null; // muddatsiz
+      planLabel = 'Umrbod';
+    } else if (duration === 'custom') {
+      const days = Number(customDays);
+      if (!days || days <= 0) return res.status(400).json({ error: "Kunlar sonini kiriting" });
+      until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      planLabel = `${days} kun (maxsus)`;
+    } else if (PREMIUM_DURATIONS[duration]) {
+      until = new Date(Date.now() + PREMIUM_DURATIONS[duration]);
+      planLabel = duration;
+    } else {
+      return res.status(400).json({ error: "Noto'g'ri muddat" });
+    }
+
+    const u = await pool.query(
+      `UPDATE users SET is_premium = true, premium_until = $1, premium_plan = $2, premium_source = 'admin' WHERE id = $3 RETURNING username, first_name, telegram_id`,
+      [until, planLabel, req.params.id]
+    );
+    if (!u.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+
+    await pool.query('INSERT INTO admin_logs (admin_username, target_user_id, action) VALUES ($1,$2,$3)',
+      [req.admin.username, req.params.id, `${u.rows[0].username || u.rows[0].first_name}ga ${planLabel} Premium berdi`]);
+
+    if (botInstance) {
+      botInstance.sendMessage(u.rows[0].telegram_id, `🎉 Sizga Premium faollashtirildi: ${planLabel}!`).catch(() => {});
+    }
+    res.json({ ok: true, until, planLabel });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+admin.delete('/users/:id/premium', requirePermission('premium'), async (req, res) => {
+  try {
+    const u = await pool.query(
+      `UPDATE users SET is_premium = false, premium_until = NULL, premium_plan = NULL, premium_source = NULL WHERE id = $1 RETURNING username, first_name`,
+      [req.params.id]
+    );
+    if (!u.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    await pool.query('INSERT INTO admin_logs (admin_username, target_user_id, action) VALUES ($1,$2,$3)',
+      [req.admin.username, req.params.id, `${u.rows[0].username || u.rows[0].first_name}dan Premiumni olib tashladi`]);
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
@@ -421,7 +598,7 @@ admin.get('/goals', async (req, res) => {
 });
 
 /* ---------- XABARLAR (broadcast) ---------- */
-admin.post('/notifications/send', async (req, res) => {
+admin.post('/notifications/send', requirePermission('notifications'), async (req, res) => {
   try {
     const { segment, text } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ error: 'Xabar matni bo\'sh' });
@@ -449,7 +626,7 @@ admin.post('/notifications/send', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
 
-admin.get('/notifications/history', async (req, res) => {
+admin.get('/notifications/history', requirePermission('notifications'), async (req, res) => {
   try {
     const q = await pool.query('SELECT * FROM notifications_log ORDER BY created_at DESC LIMIT 30');
     res.json({ history: q.rows });

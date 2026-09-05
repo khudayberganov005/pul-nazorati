@@ -145,6 +145,7 @@ async function initDb() {
   // ---- YANGI: admin dashboard uchun qo'shimcha ustunlar (mavjudni buzmasdan) ----
   await addColumnIfMissing('users', 'is_blocked', 'is_blocked BOOLEAN NOT NULL DEFAULT false');
   await addColumnIfMissing('users', 'last_active_at', 'last_active_at TIMESTAMPTZ DEFAULT NOW()');
+  await addColumnIfMissing('users', 'username', 'username TEXT');
 
   await addColumnIfMissing('categories', 'emoji', 'emoji TEXT');
   await addColumnIfMissing('categories', 'emoji_size', 'emoji_size INTEGER NOT NULL DEFAULT 32');
@@ -166,16 +167,62 @@ async function initDb() {
     );
   `);
 
+  /* ---- YANGI: Admin rollari, ruxsatlar, loglar, Premium ---- */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'admin' CHECK(role IN ('owner','admin')),
+      permissions JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_logs (
+      id SERIAL PRIMARY KEY,
+      admin_username TEXT NOT NULL,
+      target_user_id INTEGER,
+      action TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await addColumnIfMissing('users', 'is_premium', 'is_premium BOOLEAN NOT NULL DEFAULT false');
+  await addColumnIfMissing('users', 'premium_until', 'premium_until TIMESTAMPTZ');
+  await addColumnIfMissing('users', 'premium_plan', 'premium_plan TEXT');
+  await addColumnIfMissing('users', 'premium_source', "premium_source TEXT");
+
+  // Owner hisobini bir martalik urug'lash: eski ADMIN_PASSWORD'dan foydalanuvchi nomi "admin" bilan
+  const adminCount = await pool.query('SELECT COUNT(*)::int as c FROM admins');
+  if (adminCount.rows[0].c === 0 && process.env.ADMIN_PASSWORD) {
+    const { hashPassword } = require('./adminAuth');
+    const ownerUsername = process.env.ADMIN_USERNAME || 'admin';
+    await pool.query(
+      `INSERT INTO admins (username, password_hash, role, permissions) VALUES ($1,$2,'owner','{}')`,
+      [ownerUsername, hashPassword(process.env.ADMIN_PASSWORD)]
+    );
+    console.log(`Owner hisobi yaratildi: username="${ownerUsername}" (eski ADMIN_PASSWORD paroli bilan)`);
+  }
+
   console.log("Admin panel uchun qo'shimcha ustunlar tayyor.");
 }
 
-async function getOrCreateUser(telegramId, firstName) {
+async function getOrCreateUser(telegramId, firstName, username) {
   const existing = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
-  if (existing.rows[0]) return existing.rows[0];
+  if (existing.rows[0]) {
+    // Username o'zgargan bo'lsa (yoki birinchi marta kelsa) yangilab qo'yamiz
+    if (username && existing.rows[0].username !== username) {
+      const updated = await pool.query('UPDATE users SET username = $1 WHERE id = $2 RETURNING *', [username, existing.rows[0].id]);
+      return updated.rows[0];
+    }
+    return existing.rows[0];
+  }
 
   const inserted = await pool.query(
-    'INSERT INTO users (telegram_id, first_name) VALUES ($1, $2) RETURNING *',
-    [telegramId, firstName || null]
+    'INSERT INTO users (telegram_id, first_name, username) VALUES ($1, $2, $3) RETURNING *',
+    [telegramId, firstName || null, username || null]
   );
   return inserted.rows[0];
 }

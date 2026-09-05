@@ -52,7 +52,7 @@ async function requireTelegramAuth(req, res, next) {
       return res.status(401).json({ error: 'Telegram autentifikatsiyasi muvaffaqiyatsiz' });
     }
 
-    req.dbUser = await getOrCreateUser(String(result.user.id), result.user.first_name);
+    req.dbUser = await getOrCreateUser(String(result.user.id), result.user.first_name, result.user.username);
 
     if (req.dbUser.is_blocked) {
       return res.status(403).json({ error: "Sizning hisobingiz administrator tomonidan bloklangan" });
@@ -66,17 +66,42 @@ async function requireTelegramAuth(req, res, next) {
   }
 }
 
-function requireAdminAuth(req, res, next) {
-  const password = req.headers['x-admin-password'] || '';
-  const correctPassword = process.env.ADMIN_PASSWORD;
+const { pool } = require('./db');
+const { verifyToken } = require('./adminAuth');
 
-  if (!correctPassword) {
-    return res.status(500).json({ error: 'ADMIN_PASSWORD sozlanmagan (Railway Variables)' });
+async function requireAdminAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Tizimga kirish talab qilinadi' });
   }
-  if (password !== correctPassword) {
-    return res.status(401).json({ error: "Parol noto'g'ri" });
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: 'Sessiya tugagan yoki noto\'g\'ri, qayta kiring' });
   }
-  next();
+
+  try {
+    const result = await pool.query('SELECT id, username, role, permissions FROM admins WHERE id = $1', [decoded.adminId]);
+    if (!result.rows[0]) {
+      return res.status(401).json({ error: 'Admin hisobi topilmadi' });
+    }
+    req.admin = result.rows[0];
+    next();
+  } catch (err) {
+    console.error('Admin auth xatosi:', err);
+    res.status(500).json({ error: 'Server xatosi' });
+  }
 }
 
-module.exports = { requireTelegramAuth, validateInitData, requireAdminAuth };
+// Faqat Owner yoki ko'rsatilgan ruxsatga ega admin o'ta oladi
+function requirePermission(key) {
+  return (req, res, next) => {
+    if (!req.admin) return res.status(401).json({ error: 'Tizimga kirish talab qilinadi' });
+    if (req.admin.role === 'owner') return next();
+    if (req.admin.permissions && req.admin.permissions[key] === true) return next();
+    return res.status(403).json({ error: "Bu amal uchun ruxsatingiz yo'q" });
+  };
+}
+
+module.exports = { requireTelegramAuth, validateInitData, requireAdminAuth, requirePermission };
