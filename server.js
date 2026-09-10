@@ -148,6 +148,148 @@ api.get('/pages', async (req, res) => {
   }
 });
 
+/* ---------- PROFILE (foydalanuvchi ma'lumoti + moliyaviy holat) ---------- */
+api.get('/profile', async (req, res) => {
+  try {
+    const userId = req.dbUser.id;
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthStartStr = monthStart.toISOString().split('T')[0];
+
+    const totals = await pool.query(
+      `SELECT type, COALESCE(SUM(amount),0)::int as total FROM transactions
+       WHERE user_id = $1 AND date >= $2 GROUP BY type`,
+      [userId, monthStartStr]
+    );
+    let monthIncome = 0, monthExpense = 0;
+    totals.rows.forEach(t => { if (t.type === 'income') monthIncome = t.total; else monthExpense = t.total; });
+
+    // Oddiy, qoidaga asoslangan moliyaviy holat (AI emas - keyingi bosqichda AI bilan almashtiriladi)
+    let status = 'good', statusEmoji = '🟢', statusText = "Bu oy xarajatlaringiz nazoratda ko'rinadi.";
+    if (monthIncome > 0 && monthExpense > monthIncome) {
+      status = 'dangerous'; statusEmoji = '🔴';
+      statusText = "Bu oy xarajatingiz daromadingizdan oshib ketdi — ehtiyot bo'ling.";
+    } else if (monthIncome > 0 && monthExpense >= monthIncome * 0.7) {
+      status = 'average'; statusEmoji = '🟡';
+      statusText = "Xarajatlaringiz daromadingizning katta qismini tashkil qilyapti.";
+    } else if (monthIncome === 0 && monthExpense > 0) {
+      status = 'average'; statusEmoji = '🟡';
+      statusText = "Bu oy hali daromad kiritilmagan.";
+    }
+
+    res.json({
+      user: {
+        first_name: req.dbUser.first_name,
+        username: req.dbUser.username,
+        telegram_id: req.dbUser.telegram_id,
+        is_premium: req.dbUser.is_premium,
+        premium_plan: req.dbUser.premium_plan,
+        premium_until: req.dbUser.premium_until
+      },
+      monthIncome, monthExpense,
+      status, statusEmoji, statusText
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* ---------- QARZ / KREDIT MODULI ---------- */
+api.get('/debts', async (req, res) => {
+  try {
+    const q = await pool.query('SELECT * FROM debts WHERE user_id = $1 ORDER BY created_at DESC', [req.dbUser.id]);
+    res.json({ debts: q.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.post('/debts', async (req, res) => {
+  try {
+    const { type, name, total_amount, monthly_payment, due_date } = req.body;
+    if (!name || !total_amount || Number(total_amount) <= 0) {
+      return res.status(400).json({ error: "Nomi va summani to'g'ri kiriting" });
+    }
+    const q = await pool.query(
+      `INSERT INTO debts (user_id, type, name, total_amount, monthly_payment, due_date)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.dbUser.id, type === 'credit' ? 'credit' : 'debt', name, Math.round(Number(total_amount)),
+       monthly_payment ? Math.round(Number(monthly_payment)) : null, due_date || null]
+    );
+    res.json({ debt: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.put('/debts/:id', async (req, res) => {
+  try {
+    const { name, total_amount, monthly_payment, due_date } = req.body;
+    const q = await pool.query(
+      `UPDATE debts SET name=$1, total_amount=$2, monthly_payment=$3, due_date=$4
+       WHERE id=$5 AND user_id=$6 RETURNING *`,
+      [name, Math.round(Number(total_amount)), monthly_payment ? Math.round(Number(monthly_payment)) : null,
+       due_date || null, req.params.id, req.dbUser.id]
+    );
+    if (!q.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ debt: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.post('/debts/:id/pay', async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const debt = await pool.query('SELECT * FROM debts WHERE id=$1 AND user_id=$2', [req.params.id, req.dbUser.id]);
+    if (!debt.rows[0]) return res.status(404).json({ error: 'Topilmadi' });
+    const newPaid = Math.min(debt.rows[0].total_amount, debt.rows[0].paid_amount + Math.round(Number(amount || 0)));
+    const updated = await pool.query('UPDATE debts SET paid_amount=$1 WHERE id=$2 RETURNING *', [newPaid, req.params.id]);
+    res.json({ debt: updated.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.delete('/debts/:id', async (req, res) => {
+  try {
+    const q = await pool.query('DELETE FROM debts WHERE id=$1 AND user_id=$2', [req.params.id, req.dbUser.id]);
+    if (q.rowCount === 0) return res.status(404).json({ error: 'Topilmadi' });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+/* ---------- OYLIK BYUDJET (ixtiyoriy) ---------- */
+api.get('/budget', async (req, res) => {
+  try {
+    const b = await pool.query('SELECT * FROM budgets WHERE user_id = $1', [req.dbUser.id]);
+    if (!b.rows[0]) return res.json({ budget: null });
+
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+    const monthStartStr = monthStart.toISOString().split('T')[0];
+    const spentQ = await pool.query(
+      `SELECT COALESCE(SUM(amount),0)::int as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= $2`,
+      [req.dbUser.id, monthStartStr]
+    );
+    const spent = spentQ.rows[0].spent;
+    const limit = b.rows[0].monthly_limit;
+    const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+
+    res.json({ budget: { monthly_limit: limit, spent, remaining: limit - spent, percent } });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.put('/budget', async (req, res) => {
+  try {
+    const { monthly_limit } = req.body;
+    if (!monthly_limit || Number(monthly_limit) <= 0) return res.status(400).json({ error: "Byudjet summasini kiriting" });
+    await pool.query(
+      `INSERT INTO budgets (user_id, monthly_limit) VALUES ($1,$2)
+       ON CONFLICT (user_id) DO UPDATE SET monthly_limit=$2, updated_at=NOW()`,
+      [req.dbUser.id, Math.round(Number(monthly_limit))]
+    );
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.delete('/budget', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM budgets WHERE user_id = $1', [req.dbUser.id]);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
 /* ---------- YORDAMCHI: davr uchun sana chegarasi ---------- */
 function periodStartDate(period) {
   const d = new Date();

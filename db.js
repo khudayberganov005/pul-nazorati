@@ -207,6 +207,31 @@ async function initDb() {
   }
 
   console.log("Admin panel uchun qo'shimcha ustunlar tayyor.");
+
+  /* ---- YANGI: Qarz/Kredit va Oylik byudjet moduli ---- */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS debts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL DEFAULT 'debt' CHECK(type IN ('debt','credit')),
+      name TEXT NOT NULL,
+      total_amount INTEGER NOT NULL,
+      paid_amount INTEGER NOT NULL DEFAULT 0,
+      monthly_payment INTEGER,
+      due_date TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS budgets (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      monthly_limit INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  console.log("Qarz/Kredit va Byudjet jadvallari tayyor.");
 }
 
 async function getOrCreateUser(telegramId, firstName, username) {
