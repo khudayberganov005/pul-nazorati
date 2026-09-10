@@ -170,6 +170,38 @@
   .tx-list-card{ margin:20px 20px 0; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:16px 16px 6px; }
   .tx-list-title{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; margin-bottom:12px; padding:0 2px; }
   .tx-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:20px 0 24px; }
+
+  /* ===== PROFILE ===== */
+  .profile-header{ display:flex; align-items:center; gap:14px; padding:24px 20px 0; }
+  .profile-avatar{ width:56px; height:56px; border-radius:18px; background:var(--gradient); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+  .profile-name{ font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:600; }
+  .profile-username{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .profile-premium-badge{ margin-left:auto; background:rgba(255,176,32,0.15); color:var(--amber); font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; }
+
+  .status-card-profile{ margin:18px 20px 0; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:16px; display:flex; gap:12px; align-items:center; }
+  .status-emoji{ font-size:26px; }
+  .status-text{ font-size:13px; color:var(--text-dim); line-height:1.4; }
+
+  .profile-menu{ margin:18px 20px 0; display:flex; flex-direction:column; gap:10px; }
+  .profile-menu-item{ display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; text-align:left; width:100%; color:var(--text); }
+  .profile-menu-icon{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .profile-menu-text{ flex:1; font-size:14px; font-weight:600; }
+  .profile-menu-sub{ font-size:11px; color:var(--text-dim); font-weight:400; margin-top:2px; }
+  .profile-menu-arrow{ font-size:20px; color:var(--text-dim); }
+
+  .profile-back{ background:none; border:none; color:var(--cyan); font-size:13px; font-weight:600; padding:20px 20px 12px; }
+
+  .debt-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:10px; }
+  .debt-card-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .debt-type-badge{ font-size:10px; padding:2px 8px; border-radius:6px; font-weight:700; }
+  .debt-type-badge.debt{ background:rgba(255,82,82,0.14); color:var(--expense); }
+  .debt-type-badge.credit{ background:rgba(0,200,83,0.14); color:var(--income); }
+
+  .budget-ring-wrap{ display:flex; flex-direction:column; align-items:center; padding:10px 0 20px; }
+  .budget-warning{ font-size:12px; text-align:center; margin-top:10px; padding:10px; border-radius:10px; }
+  .budget-warning.ok{ background:rgba(0,200,83,0.1); color:var(--income); }
+  .budget-warning.warn{ background:rgba(255,176,32,0.1); color:var(--amber); }
+  .budget-warning.danger{ background:rgba(255,82,82,0.1); color:var(--expense); }
   .tx-row{ display:flex; align-items:center; gap:11px; padding:11px 2px; border-bottom:1px solid var(--line); }
   .tx-row:last-child{ border-bottom:none; }
   .tx-icon-tile{ width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
@@ -394,11 +426,88 @@
     <div class="cat-breakdown" id="catBreakdown"></div>
   </section>
 
-  <!-- ================= KO'PROQ (admin qo'shgan sahifalar) ================= -->
+  <!-- ================= PROFIL ================= -->
   <section class="view" id="view-more">
-    <div class="screen-title" data-setting="nav_more_label">Ko'proq</div>
-    <div id="pagesList" style="padding:0 20px; display:flex; flex-direction:column; gap:10px;"></div>
-    <div id="pageDetail" style="display:none; padding:0 20px;"></div>
+    <div class="screen-title" data-setting="nav_more_label">Profil</div>
+
+    <!-- Asosiy profil ko'rinishi -->
+    <div id="profileMain">
+      <div class="profile-header">
+        <div class="profile-avatar">👤</div>
+        <div>
+          <div class="profile-name" id="profileName">—</div>
+          <div class="profile-username" id="profileUsername"></div>
+        </div>
+        <div class="profile-premium-badge" id="profilePremiumBadge" style="display:none;">⭐ Premium</div>
+      </div>
+
+      <div class="status-card-profile" id="statusCard">
+        <div class="status-emoji" id="statusEmoji">🟢</div>
+        <div class="status-text" id="statusText">Yuklanmoqda...</div>
+      </div>
+
+      <div class="profile-menu">
+        <button class="profile-menu-item" data-open="debts">
+          <span class="profile-menu-icon" style="background:#FF5252">💳</span>
+          <div class="profile-menu-text">
+            <div>Qarz / Kredit</div>
+            <div class="profile-menu-sub" id="debtsSummary">Yuklanmoqda...</div>
+          </div>
+          <span class="profile-menu-arrow">&rsaquo;</span>
+        </button>
+        <button class="profile-menu-item" data-open="budget">
+          <span class="profile-menu-icon" style="background:#00C853">💰</span>
+          <div class="profile-menu-text">
+            <div>Oylik byudjet</div>
+            <div class="profile-menu-sub" id="budgetSummary">Yuklanmoqda...</div>
+          </div>
+          <span class="profile-menu-arrow">&rsaquo;</span>
+        </button>
+        <button class="profile-menu-item" data-open="pages">
+          <span class="profile-menu-icon" style="background:#7C4DFF">📄</span>
+          <div class="profile-menu-text"><div>Qo'shimcha ma'lumot</div></div>
+          <span class="profile-menu-arrow">&rsaquo;</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- QARZ/KREDIT sub-ekrani -->
+    <div id="profileDebts" style="display:none;">
+      <button class="profile-back" data-back="debts">&larr; Orqaga</button>
+      <div class="add-panel" style="margin-top:0;">
+        <div class="add-panel-title">Yangi qarz/kredit</div>
+        <div class="type-toggle">
+          <button type="button" class="active expense" id="debtTypeDebt">Qarzim bor</button>
+          <button type="button" class="income" id="debtTypeCredit">Kreditga berdim</button>
+        </div>
+        <div class="field-label">Nomi</div>
+        <input type="text" id="debtName" placeholder="Masalan: Do'stimga qarz">
+        <div class="field-label">Umumiy summa</div>
+        <div class="amount-row"><input type="text" inputmode="numeric" id="debtTotal" placeholder="0"><span class="amount-unit">so'm</span></div>
+        <div class="field-label">Oylik to'lov (ixtiyoriy)</div>
+        <div class="amount-row"><input type="text" inputmode="numeric" id="debtMonthly" placeholder="0"><span class="amount-unit">so'm</span></div>
+        <div class="field-label">Muddat (ixtiyoriy)</div>
+        <input type="date" id="debtDueDate">
+        <button class="submit-btn expense" id="createDebtBtn" style="margin-top:16px;">Qo'shish</button>
+      </div>
+      <div class="tx-list-card">
+        <div class="tx-list-title">Mavjud qarz/kreditlar</div>
+        <div id="debtsList"></div>
+      </div>
+    </div>
+
+    <!-- BYUDJET sub-ekrani -->
+    <div id="profileBudget" style="display:none;">
+      <button class="profile-back" data-back="budget">&larr; Orqaga</button>
+      <div id="budgetContent"></div>
+    </div>
+
+    <!-- SAHIFALAR sub-ekrani (avvalgi "Ko'proq") -->
+    <div id="profilePages" style="display:none;">
+      <button class="profile-back" data-back="pages">&larr; Orqaga</button>
+      <div id="pagesList" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <div id="pageDetail" style="display:none;"></div>
+    </div>
   </section>
 
   <!-- ================= BOTTOM NAV ================= -->
@@ -420,8 +529,8 @@
       <span data-setting="nav_analysis_label">Tahlil</span>
     </button>
     <button class="nav-btn" data-view="view-more">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
-      <span data-setting="nav_more_label">Ko'proq</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke-linecap="round"/></svg>
+      <span data-setting="nav_more_label">Profil</span>
     </button>
   </nav>
 
@@ -868,6 +977,177 @@
     } catch (e) { console.error('Sahifalarni yuklashda xatolik:', e.message); }
   }
 
+  /* ---------- PROFIL: sub-ekranlar orasida almashish ---------- */
+  const profileMain = document.getElementById('profileMain');
+  const profileSubViews = {
+    debts: document.getElementById('profileDebts'),
+    budget: document.getElementById('profileBudget'),
+    pages: document.getElementById('profilePages')
+  };
+  document.querySelectorAll('.profile-menu-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.open;
+      profileMain.style.display = 'none';
+      profileSubViews[key].style.display = 'block';
+      if (key === 'debts') loadDebts();
+      if (key === 'budget') loadBudget();
+      if (key === 'pages') loadPages();
+    });
+  });
+  document.querySelectorAll('.profile-back').forEach(btn => {
+    btn.addEventListener('click', () => {
+      profileSubViews[btn.dataset.back].style.display = 'none';
+      profileMain.style.display = 'block';
+    });
+  });
+
+  /* ---------- PROFIL: asosiy ma'lumot + moliyaviy holat ---------- */
+  async function loadProfile() {
+    try {
+      const data = await api('/profile');
+      document.getElementById('profileName').textContent = data.user.first_name || 'Foydalanuvchi';
+      document.getElementById('profileUsername').textContent = data.user.username ? '@' + data.user.username : '';
+      const premiumBadge = document.getElementById('profilePremiumBadge');
+      if (data.user.is_premium) {
+        premiumBadge.style.display = 'block';
+        premiumBadge.textContent = '⭐ ' + (data.user.premium_plan || 'Premium');
+      }
+      document.getElementById('statusEmoji').textContent = data.statusEmoji;
+      document.getElementById('statusText').textContent = data.statusText;
+    } catch (e) { console.error('Profilni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- QARZ / KREDIT ---------- */
+  let debtType = 'debt';
+  const debtTypeDebt = document.getElementById('debtTypeDebt');
+  const debtTypeCredit = document.getElementById('debtTypeCredit');
+  debtTypeDebt.addEventListener('click', () => {
+    debtType = 'debt';
+    debtTypeDebt.classList.add('active'); debtTypeCredit.classList.remove('active');
+  });
+  debtTypeCredit.addEventListener('click', () => {
+    debtType = 'credit';
+    debtTypeCredit.classList.add('active'); debtTypeDebt.classList.remove('active');
+  });
+  formatNumInput(document.getElementById('debtTotal'));
+  formatNumInput(document.getElementById('debtMonthly'));
+
+  document.getElementById('createDebtBtn').addEventListener('click', async () => {
+    const name = document.getElementById('debtName').value.trim();
+    const total = Number(document.getElementById('debtTotal').value.replace(/\D/g, ''));
+    const monthly = document.getElementById('debtMonthly').value.replace(/\D/g, '');
+    const due = document.getElementById('debtDueDate').value;
+    if (!name || !total) return alert("Nomi va summani kiriting");
+    try {
+      await api('/debts', { method: 'POST', body: JSON.stringify({ type: debtType, name, total_amount: total, monthly_payment: monthly || null, due_date: due || null }) });
+      document.getElementById('debtName').value = '';
+      document.getElementById('debtTotal').value = '';
+      document.getElementById('debtMonthly').value = '';
+      document.getElementById('debtDueDate').value = '';
+      loadDebts();
+    } catch (e) { alert(e.message); }
+  });
+
+  async function loadDebts() {
+    try {
+      const { debts } = await api('/debts');
+      const list = document.getElementById('debtsList');
+      if (!debts.length) {
+        list.innerHTML = '<div class="tx-empty">Hali qarz/kredit yo\'q</div>';
+        document.getElementById('debtsSummary').textContent = "Yo'q";
+        return;
+      }
+      const totalRemaining = debts.reduce((a, d) => a + (d.total_amount - d.paid_amount), 0);
+      document.getElementById('debtsSummary').textContent = `${debts.length} ta, qoldiq: ${fmt(totalRemaining)} so'm`;
+
+      list.innerHTML = debts.map(d => {
+        const remaining = d.total_amount - d.paid_amount;
+        const pct = Math.min(100, Math.round((d.paid_amount / d.total_amount) * 100));
+        return `
+        <div class="debt-card">
+          <div class="debt-card-top">
+            <div style="font-weight:600; font-size:14px;">${d.name}</div>
+            <span class="debt-type-badge ${d.type}">${d.type === 'debt' ? 'Mening qarzim' : 'Menga qarzdor'}</span>
+          </div>
+          <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+          <div class="goal-nums" style="margin-top:8px;"><span>To'landi: ${fmt(d.paid_amount)}</span><span>Qoldi: ${fmt(remaining)}</span></div>
+          ${d.due_date ? `<div class="tx-meta" style="margin-top:6px;">Muddat: ${d.due_date}</div>` : ''}
+          <div class="goal-add-row">
+            <input type="text" inputmode="numeric" placeholder="To'lov summasi" data-pay-id="${d.id}" class="debt-pay-input">
+            <button data-pay-btn="${d.id}" class="goal-add-btn">+ To'lov</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      document.querySelectorAll('.debt-pay-input').forEach(formatNumInput);
+      document.querySelectorAll('[data-pay-btn]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const input = document.querySelector(`[data-pay-id="${btn.dataset.payBtn}"]`);
+          const val = Number(input.value.replace(/\D/g, ''));
+          if (val > 0) {
+            try { await api(`/debts/${btn.dataset.payBtn}/pay`, { method: 'POST', body: JSON.stringify({ amount: val }) }); loadDebts(); }
+            catch (e) { alert(e.message); }
+          }
+        });
+      });
+    } catch (e) { console.error('Qarzlarni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- OYLIK BYUDJET ---------- */
+  async function loadBudget() {
+    const content = document.getElementById('budgetContent');
+    try {
+      const { budget } = await api('/budget');
+      if (!budget) {
+        content.innerHTML = `
+          <div class="add-panel" style="margin-top:0;">
+            <div class="add-panel-title">Oylik byudjet o'rnatish</div>
+            <div class="field-label">Oylik xarajat limiti</div>
+            <div class="amount-row"><input type="text" inputmode="numeric" id="budgetLimitInput" placeholder="0"><span class="amount-unit">so'm</span></div>
+            <button class="submit-btn income" id="saveBudgetBtn" style="margin-top:16px;">O'rnatish</button>
+          </div>
+        `;
+        formatNumInput(document.getElementById('budgetLimitInput'));
+        document.getElementById('saveBudgetBtn').addEventListener('click', async () => {
+          const val = Number(document.getElementById('budgetLimitInput').value.replace(/\D/g, ''));
+          if (!val) return alert("Summani kiriting");
+          try { await api('/budget', { method: 'PUT', body: JSON.stringify({ monthly_limit: val }) }); loadBudget(); }
+          catch (e) { alert(e.message); }
+        });
+        document.getElementById('budgetSummary').textContent = "O'rnatilmagan";
+        return;
+      }
+
+      let warnClass = 'ok', warnText = "Byudjet nazoratda.";
+      if (budget.percent >= 100) { warnClass = 'danger'; warnText = "Byudjet limiti to'liq sarflandi!"; }
+      else if (budget.percent >= 90) { warnClass = 'danger'; warnText = "Diqqat: byudjetning 90% dan ortig'i sarflandi!"; }
+      else if (budget.percent >= 70) { warnClass = 'warn'; warnText = "Byudjetning 70% dan ortig'i sarflandi."; }
+
+      document.getElementById('budgetSummary').textContent = `${budget.percent}% sarflandi`;
+      content.innerHTML = `
+        <div class="card" style="background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px;">
+          <div class="goal-nums"><span>Sarflandi: ${fmt(budget.spent)}</span><span>Limit: ${fmt(budget.monthly_limit)}</span></div>
+          <div class="goal-bar-track" style="margin-top:10px;"><div class="goal-bar-fill" style="width:${Math.min(100,budget.percent)}%; ${budget.percent>=90?'background:var(--expense);':budget.percent>=70?'background:var(--amber);':''}"></div></div>
+          <div class="budget-warning ${warnClass}">${warnText}</div>
+          <div style="margin-top:14px; font-size:12px; color:var(--text-dim);">Qoldiq: ${fmt(budget.remaining)} so'm</div>
+        </div>
+        <button class="btn-sm" id="editBudgetBtn" style="margin-top:14px; width:100%; padding:12px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line); color:var(--text);">Byudjetni o'zgartirish</button>
+        <button class="btn-sm" id="deleteBudgetBtn" style="margin-top:8px; width:100%; padding:12px; border-radius:12px; background:var(--expense-dim); border:1px solid var(--expense); color:var(--expense);">Byudjetni o'chirish</button>
+      `;
+      document.getElementById('editBudgetBtn').addEventListener('click', async () => {
+        const val = prompt("Yangi oylik limit (so'm):", budget.monthly_limit);
+        if (!val) return;
+        try { await api('/budget', { method: 'PUT', body: JSON.stringify({ monthly_limit: Number(val.replace(/\D/g,'')) }) }); loadBudget(); }
+        catch (e) { alert(e.message); }
+      });
+      document.getElementById('deleteBudgetBtn').addEventListener('click', async () => {
+        if (!confirm("Byudjetni o'chirmoqchimisiz?")) return;
+        try { await api('/budget', { method: 'DELETE' }); loadBudget(); }
+        catch (e) { alert(e.message); }
+      });
+    } catch (e) { console.error('Byudjetni yuklashda xatolik:', e.message); }
+  }
+
   /* ---------- BOSHLANG'ICH YUKLASH ---------- */
   loadSettings();
   loadCategories();
@@ -877,6 +1157,9 @@
   loadAnalysis();
   loadTransactions();
   loadPages();
+  loadProfile();
+  loadDebts();
+  loadBudget();
 </script>
 </body>
 </html>
