@@ -114,14 +114,44 @@ admin.get('/logs', requirePermission('adminLogs'), async (req, res) => {
 api.get('/categories', async (req, res) => {
   try {
     const type = req.query.type;
-    const q = type
-      ? await pool.query('SELECT * FROM categories WHERE type = $1 ORDER BY sort_order ASC, id ASC', [type])
-      : await pool.query('SELECT * FROM categories ORDER BY type, sort_order ASC, id ASC');
+    const params = type ? [req.dbUser.id, type] : [req.dbUser.id];
+    const typeFilter = type ? 'AND type = $2' : '';
+    const q = await pool.query(
+      `SELECT * FROM categories WHERE (user_id IS NULL OR user_id = $1) ${typeFilter} ORDER BY type, sort_order ASC, id ASC`,
+      params
+    );
     res.json({ categories: q.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server xatosi' });
   }
+});
+
+/* ---------- FOYDALANUVCHI O'Z KATEGORIYASINI YARATISHI (doimiy saqlanadi) ---------- */
+api.post('/categories', async (req, res) => {
+  try {
+    const { type, name, emoji } = req.body;
+    if (!['income', 'expense'].includes(type) || !name || !name.trim()) {
+      return res.status(400).json({ error: "Kategoriya turi va nomini kiriting" });
+    }
+    const palette = ['#00E5FF', '#7C4DFF', '#FFB020', '#00C853', '#FF5252', '#00B8D9'];
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    const q = await pool.query(
+      `INSERT INTO categories (type, name, color, icon_key, emoji, sort_order, user_id)
+       VALUES ($1,$2,$3,'dots',$4,50,$5) RETURNING *`,
+      [type, name.trim(), color, emoji || null, req.dbUser.id]
+    );
+    res.json({ category: q.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
+});
+
+api.delete('/categories/:id', async (req, res) => {
+  try {
+    // Foydalanuvchi faqat OZINING kategoriyasini o'chira oladi (global/admin kategoriyalarga tegmaydi)
+    const q = await pool.query('DELETE FROM categories WHERE id = $1 AND user_id = $2', [req.params.id, req.dbUser.id]);
+    if (q.rowCount === 0) return res.status(404).json({ error: "Topilmadi yoki bu sizniki emas" });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server xatosi' }); }
 });
 
 /* ---------- SOZLAMALAR (matnlar/ranglar, admin boshqaradi) ---------- */
@@ -319,16 +349,38 @@ api.get('/summary', async (req, res) => {
 /* ---------- TRANZAKSIYA QO'SHISH ---------- */
 api.post('/transactions', async (req, res) => {
   try {
-    const { type, category, amount, date, comment, payment_type } = req.body;
+    const { type, category, amount, date, time, comment, payment_type } = req.body;
+    if (!['income', 'expense'].includes(type) || !category || !amount || !date) {
+      return res.status(400).json({ error: 'Maydonlar to\'liq emas' });
+    }
+    const timeValue = time || new Date().toTimeString().slice(0, 5); // HH:MM
+    const result = await pool.query(
+      `INSERT INTO transactions (user_id, type, category, amount, date, time, comment, payment_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [req.dbUser.id, type, category, Math.round(Number(amount)), date, timeValue, comment || null, payment_type || 'cash']
+    );
+    res.json({ id: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server xatosi' });
+  }
+});
+
+/* ---------- TRANZAKSIYANI TAHRIRLASH ---------- */
+api.put('/transactions/:id', async (req, res) => {
+  try {
+    const { type, category, amount, date, time, comment, payment_type } = req.body;
     if (!['income', 'expense'].includes(type) || !category || !amount || !date) {
       return res.status(400).json({ error: 'Maydonlar to\'liq emas' });
     }
     const result = await pool.query(
-      `INSERT INTO transactions (user_id, type, category, amount, date, comment, payment_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [req.dbUser.id, type, category, Math.round(Number(amount)), date, comment || null, payment_type || 'cash']
+      `UPDATE transactions SET type=$1, category=$2, amount=$3, date=$4, time=$5, comment=$6, payment_type=$7
+       WHERE id=$8 AND user_id=$9 RETURNING *`,
+      [type, category, Math.round(Number(amount)), date, time || null, comment || null,
+       payment_type || 'cash', req.params.id, req.dbUser.id]
     );
-    res.json({ id: result.rows[0].id });
+    if (!result.rows[0]) return res.status(404).json({ error: 'Tranzaksiya topilmadi' });
+    res.json({ transaction: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server xatosi' });

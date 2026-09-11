@@ -152,6 +152,8 @@ async function initDb() {
   await addColumnIfMissing('categories', 'emoji_bg', 'emoji_bg TEXT');
   await addColumnIfMissing('categories', 'emoji_radius', 'emoji_radius INTEGER NOT NULL DEFAULT 14');
   await addColumnIfMissing('categories', 'is_active', 'is_active BOOLEAN NOT NULL DEFAULT true');
+  await addColumnIfMissing('categories', 'user_id', 'user_id INTEGER REFERENCES users(id)');
+  await addColumnIfMissing('transactions', 'time', "time TEXT");
 
   await addColumnIfMissing('goals', 'status', "status TEXT NOT NULL DEFAULT 'active'");
   await addColumnIfMissing('goals', 'started_at', 'started_at TIMESTAMPTZ DEFAULT NOW()');
