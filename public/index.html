@@ -343,8 +343,11 @@
       <div class="cat-tile-grid" id="catGrid"></div>
       <input type="text" class="custom-cat-input" id="customCat" placeholder="Kategoriya nomini kiriting">
 
-      <div class="field-label">2. Sana</div>
-      <input type="date" id="dateInput">
+      <div class="field-label">2. Sana va vaqt</div>
+      <div style="display:flex; gap:8px;">
+        <input type="date" id="dateInput" style="flex:1.4;">
+        <input type="time" id="timeInput" style="flex:1;">
+      </div>
 
       <div class="field-label">3. Summa</div>
       <div class="amount-row">
@@ -356,6 +359,7 @@
       <textarea id="commentInput" placeholder="Ixtiyoriy izoh..."></textarea>
 
       <button class="submit-btn income" id="submitBtn" data-setting="submit_btn_label">Qo&#39;shish</button>
+      <button class="btn-cancel-edit" id="cancelEditBtn" style="display:none; width:100%; margin-top:10px; padding:13px 0; border-radius:14px; background:var(--panel-2); border:1px solid var(--line); color:var(--text-dim); font-size:14px; font-weight:600;">Bekor qilish</button>
     </div>
 
     <div class="tx-list-card">
@@ -468,6 +472,32 @@
           <div class="profile-menu-text"><div>Qo'shimcha ma'lumot</div></div>
           <span class="profile-menu-arrow">&rsaquo;</span>
         </button>
+        <button class="profile-menu-item" data-open="mycats">
+          <span class="profile-menu-icon" style="background:#00B8D9">🗂️</span>
+          <div class="profile-menu-text"><div>Mening kategoriyalarim</div></div>
+          <span class="profile-menu-arrow">&rsaquo;</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- MENING KATEGORIYALARIM sub-ekrani -->
+    <div id="profileMyCats" style="display:none;">
+      <button class="profile-back" data-back="mycats">&larr; Orqaga</button>
+      <div class="add-panel" style="margin-top:0;">
+        <div class="add-panel-title">Yangi kategoriya qo'shish</div>
+        <div class="type-toggle">
+          <button type="button" class="active income" id="myCatTypeIncome">Daromad</button>
+          <button type="button" class="expense" id="myCatTypeExpense">Xarajat</button>
+        </div>
+        <div class="field-label">Emoji (ixtiyoriy)</div>
+        <input type="text" id="myCatEmoji" placeholder="🍔 🚗 💰 ..." style="font-size:20px; margin-bottom:0;">
+        <div class="field-label">Nomi</div>
+        <input type="text" id="myCatName" placeholder="Masalan: Kommunal">
+        <button class="submit-btn income" id="addMyCatBtn" style="margin-top:16px;">Qo'shish</button>
+      </div>
+      <div class="tx-list-card">
+        <div class="tx-list-title">Mening kategoriyalarim</div>
+        <div id="myCatsList"></div>
       </div>
     </div>
 
@@ -546,12 +576,17 @@
   };
   function svgIcon(path, size){ return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${path}</svg>`; }
 
-  // Kategoriyalar endi bazadan keladi (adminCategoriesMap: name -> {color, icon_key})
+  // Kategoriyalar endi bazadan keladi (adminCategoriesMap: name -> {color, icon_key, emoji})
   let adminCategoriesMap = {};
   function getCatStyle(name){
     const c = adminCategoriesMap[name];
-    if (c) return { color: c.color, icon: ICONS[c.icon_key] || ICONS.dots };
-    return { color: '#FFB020', icon: ICONS.dots };
+    if (c) return { color: c.color, icon: ICONS[c.icon_key] || ICONS.dots, emoji: c.emoji || null };
+    return { color: '#FFB020', icon: ICONS.dots, emoji: null };
+  }
+  function renderTileVisual(style, size){
+    return style.emoji
+      ? `<span style="font-size:${Math.round(size*0.85)}px; line-height:1;">${style.emoji}</span>`
+      : svgIcon(style.icon, size);
   }
 
   /* ---------- TELEGRAM WEB APP INIT ---------- */
@@ -622,7 +657,10 @@
   const dateInput = document.getElementById('dateInput');
 
   function todayStr(){ return new Date().toISOString().split('T')[0]; }
+  function nowTimeStr(){ const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+  const timeInput = document.getElementById('timeInput');
   dateInput.value = todayStr();
+  timeInput.value = nowTimeStr();
 
   async function loadCategories() {
     try {
@@ -646,7 +684,7 @@
       const tile = document.createElement('button');
       tile.type = 'button';
       tile.className = 'cat-tile';
-      tile.innerHTML = `<div class="cat-tile-icon" style="background:${style.color}">${svgIcon(style.icon, 24)}</div><span>${cat}</span>`;
+      tile.innerHTML = `<div class="cat-tile-icon" style="background:${style.color}">${renderTileVisual(style, 24)}</div><span>${cat}</span>`;
       tile.addEventListener('click', () => {
         document.querySelectorAll('.cat-tile').forEach(c => c.classList.remove('selected'));
         tile.classList.add('selected');
@@ -679,6 +717,22 @@
   const amountInput = document.getElementById('amountInput');
   formatNumInput(amountInput);
 
+  let editingTxId = null; // null = yangi qo'shish, aks holda tahrirlash rejimi
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const defaultSubmitLabel = submitBtn.textContent;
+
+  function exitEditMode() {
+    editingTxId = null;
+    submitBtn.textContent = defaultSubmitLabel;
+    cancelEditBtn.style.display = 'none';
+    amountInput.value = '';
+    document.getElementById('commentInput').value = '';
+    dateInput.value = todayStr();
+    timeInput.value = nowTimeStr();
+    renderCats();
+  }
+  cancelEditBtn.addEventListener('click', exitEditMode);
+
   submitBtn.addEventListener('click', async () => {
     const cat = selectedCat === 'Boshqa' ? (customCat.value.trim() || 'Boshqa') : selectedCat;
     if (!cat) return;
@@ -689,14 +743,27 @@
       category: cat,
       amount: Number(amountInput.value.replace(/\D/g, '')),
       date: dateInput.value,
+      time: timeInput.value,
       comment: document.getElementById('commentInput').value
     };
 
     submitBtn.disabled = true;
     try {
-      await api('/transactions', { method: 'POST', body: JSON.stringify(payload) });
-      amountInput.value = '';
-      document.getElementById('commentInput').value = '';
+      // Agar "Boshqa" orqali yangi nom kiritilgan bo'lsa, uni doimiy kategoriya sifatida saqlaymiz
+      // (bir martalik vaqtinchalik kategoriya yaratmaslik uchun)
+      if (selectedCat === 'Boshqa' && customCat.value.trim()) {
+        try { await api('/categories', { method: 'POST', body: JSON.stringify({ type: currentType, name: cat }) }); }
+        catch (e) { /* allaqachon mavjud bo'lishi mumkin, e'tiborsiz qoldiramiz */ }
+      }
+
+      if (editingTxId) {
+        await api(`/transactions/${editingTxId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await api('/transactions', { method: 'POST', body: JSON.stringify(payload) });
+      }
+
+      exitEditMode();
+      await loadCategories();
       await loadSummary();
       await loadStats(currentStatsPeriod);
       await loadAnalysis();
@@ -726,6 +793,7 @@
     const txList = document.getElementById('txList');
     try {
       const data = await api('/transactions');
+      window.__txCache = data.transactions;
       if (!data.transactions.length) {
         txList.innerHTML = '<div class="tx-empty">Hali tranzaksiya yo\'q</div>';
         return;
@@ -733,22 +801,30 @@
       txList.innerHTML = data.transactions.map(t => {
         const style = getCatStyle(t.category);
         return `
-        <div class="tx-row">
-          <div class="tx-icon-tile" style="background:${style.color}">${svgIcon(style.icon, 18)}</div>
+        <div class="tx-row" data-tx-id="${t.id}" style="cursor:pointer;">
+          <div class="tx-icon-tile" style="background:${style.color}">${renderTileVisual(style, 18)}</div>
           <div class="tx-info">
             <div class="tx-cat">${t.category}</div>
-            <div class="tx-meta">${t.date}${t.comment ? ' &middot; ' + t.comment : ''}</div>
+            <div class="tx-meta">${t.date}${t.time ? ' &middot; ' + t.time : ''}${t.comment ? ' &middot; ' + t.comment : ''}</div>
           </div>
           <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
           <button class="tx-delete" data-id="${t.id}" aria-label="O'chirish">${trashIconSvg}</button>
         </div>
       `;}).join('');
 
+      document.querySelectorAll('.tx-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.tx-delete')) return;
+          startEditTransaction(row.dataset.txId);
+        });
+      });
       document.querySelectorAll('.tx-delete').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
           if (!confirm("Bu tranzaksiyani o'chirmoqchimisiz?")) return;
           try {
             await api(`/transactions/${btn.dataset.id}`, { method: 'DELETE' });
+            if (editingTxId == btn.dataset.id) exitEditMode();
             await Promise.all([loadTransactions(), loadSummary(), loadStats(currentStatsPeriod), loadAnalysis()]);
           } catch (e) { alert(e.message); }
         });
@@ -756,6 +832,32 @@
     } catch (e) {
       console.error('Tranzaksiyalarni yuklashda xatolik:', e.message);
     }
+  }
+
+  function startEditTransaction(txId) {
+    const t = (window.__txCache || []).find(x => String(x.id) === String(txId));
+    if (!t) return;
+    editingTxId = t.id;
+    setType(t.type);
+    setTimeout(() => {
+      document.querySelectorAll('.cat-tile').forEach(tile => {
+        if (tile.querySelector('span').textContent === t.category) tile.classList.add('selected');
+      });
+      if (!incomeCats.concat(expenseCats).includes(t.category)) {
+        selectedCat = 'Boshqa';
+        customCat.classList.add('show');
+        customCat.value = t.category;
+      } else {
+        selectedCat = t.category;
+      }
+    }, 0);
+    dateInput.value = t.date;
+    timeInput.value = t.time || nowTimeStr();
+    amountInput.value = fmt(t.amount);
+    document.getElementById('commentInput').value = t.comment || '';
+    submitBtn.textContent = 'Yangilash';
+    cancelEditBtn.style.display = 'block';
+    document.querySelector('.add-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /* ---------- STATISTIKA CHART (sof SVG) ---------- */
@@ -982,7 +1084,8 @@
   const profileSubViews = {
     debts: document.getElementById('profileDebts'),
     budget: document.getElementById('profileBudget'),
-    pages: document.getElementById('profilePages')
+    pages: document.getElementById('profilePages'),
+    mycats: document.getElementById('profileMyCats')
   };
   document.querySelectorAll('.profile-menu-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -992,6 +1095,7 @@
       if (key === 'debts') loadDebts();
       if (key === 'budget') loadBudget();
       if (key === 'pages') loadPages();
+      if (key === 'mycats') loadMyCategories();
     });
   });
   document.querySelectorAll('.profile-back').forEach(btn => {
@@ -1146,6 +1250,61 @@
         catch (e) { alert(e.message); }
       });
     } catch (e) { console.error('Byudjetni yuklashda xatolik:', e.message); }
+  }
+
+  /* ---------- MENING KATEGORIYALARIM ---------- */
+  let myCatType = 'income';
+  const myCatTypeIncome = document.getElementById('myCatTypeIncome');
+  const myCatTypeExpense = document.getElementById('myCatTypeExpense');
+  myCatTypeIncome.addEventListener('click', () => {
+    myCatType = 'income';
+    myCatTypeIncome.classList.add('active'); myCatTypeExpense.classList.remove('active');
+  });
+  myCatTypeExpense.addEventListener('click', () => {
+    myCatType = 'expense';
+    myCatTypeExpense.classList.add('active'); myCatTypeIncome.classList.remove('active');
+  });
+
+  document.getElementById('addMyCatBtn').addEventListener('click', async () => {
+    const name = document.getElementById('myCatName').value.trim();
+    const emoji = document.getElementById('myCatEmoji').value.trim();
+    if (!name) return alert('Kategoriya nomini kiriting');
+    try {
+      await api('/categories', { method: 'POST', body: JSON.stringify({ type: myCatType, name, emoji }) });
+      document.getElementById('myCatName').value = '';
+      document.getElementById('myCatEmoji').value = '';
+      await loadCategories();
+      await loadMyCategories();
+    } catch (e) { alert(e.message); }
+  });
+
+  async function loadMyCategories() {
+    try {
+      const { categories } = await api('/categories');
+      const mine = categories.filter(c => c.user_id);
+      const list = document.getElementById('myCatsList');
+      if (!mine.length) {
+        list.innerHTML = '<div class="tx-empty">Hali o\'z kategoriyangiz yo\'q</div>';
+        return;
+      }
+      list.innerHTML = mine.map(c => `
+        <div class="tx-row">
+          <div class="tx-icon-tile" style="background:${c.color}; font-size:16px; display:flex; align-items:center; justify-content:center;">${c.emoji || '🔘'}</div>
+          <div class="tx-info">
+            <div class="tx-cat">${c.name}</div>
+            <div class="tx-meta">${c.type === 'income' ? 'Daromad' : 'Xarajat'}</div>
+          </div>
+          <button class="tx-delete" data-mycat-id="${c.id}" aria-label="O'chirish">${trashIconSvg}</button>
+        </div>
+      `).join('');
+      document.querySelectorAll('[data-mycat-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm("Bu kategoriyani o'chirmoqchimisiz?")) return;
+          try { await api(`/categories/${btn.dataset.mycatId}`, { method: 'DELETE' }); await loadCategories(); await loadMyCategories(); }
+          catch (e) { alert(e.message); }
+        });
+      });
+    } catch (e) { console.error('Kategoriyalarni yuklashda xatolik:', e.message); }
   }
 
   /* ---------- BOSHLANG'ICH YUKLASH ---------- */
